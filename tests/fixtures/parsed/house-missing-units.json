@@ -1,0 +1,377 @@
+{
+ "dxfVersion": "AC1032",
+ "entities": [
+  {
+   "closed": true,
+   "handle": "35",
+   "layer": "A-WALL",
+   "points": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     9000.0,
+     0.0,
+     0.0
+    ],
+    [
+     9000.0,
+     7000.0,
+     0.0
+    ],
+    [
+     0.0,
+     7000.0,
+     0.0
+    ]
+   ],
+   "type": "POLYLINE"
+  },
+  {
+   "a": [
+    5000.0,
+    0.0
+   ],
+   "b": [
+    5000.0,
+    7000.0
+   ],
+   "handle": "36",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    5000.0,
+    3500.0
+   ],
+   "b": [
+    9000.0,
+    3500.0
+   ],
+   "handle": "37",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    2000.0,
+    0.0
+   ],
+   "b": [
+    2000.0,
+    900.0
+   ],
+   "handle": "42/None",
+   "layer": "A-DOOR",
+   "type": "LINE"
+  },
+  {
+   "center": [
+    2000.0,
+    0.0
+   ],
+   "endDeg": 90.0,
+   "handle": "42/None",
+   "layer": "A-DOOR",
+   "radius": 900.0,
+   "startDeg": 0.0,
+   "type": "ARC"
+  },
+  {
+   "a": [
+    5000.0,
+    5000.0
+   ],
+   "b": [
+    4100.0,
+    5000.0
+   ],
+   "handle": "44/None",
+   "layer": "A-DOOR",
+   "type": "LINE"
+  },
+  {
+   "center": [
+    5000.0,
+    5000.0
+   ],
+   "endDeg": 180.0,
+   "handle": "44/None",
+   "layer": "A-DOOR",
+   "radius": 900.0,
+   "startDeg": 90.0,
+   "type": "ARC"
+  },
+  {
+   "closed": true,
+   "handle": "46/None",
+   "layer": "A-GLAZ",
+   "points": [
+    [
+     1750.0,
+     6900.0,
+     0.0
+    ],
+    [
+     3250.0,
+     6900.0,
+     0.0
+    ],
+    [
+     3250.0,
+     7100.0,
+     0.0
+    ],
+    [
+     1750.0,
+     7100.0,
+     0.0
+    ]
+   ],
+   "type": "POLYLINE"
+  },
+  {
+   "a": [
+    1750.0,
+    7000.0
+   ],
+   "b": [
+    3250.0,
+    7000.0
+   ],
+   "handle": "46/None",
+   "layer": "A-GLAZ",
+   "type": "LINE"
+  },
+  {
+   "closed": true,
+   "handle": "48/None",
+   "layer": "A-GLAZ",
+   "points": [
+    [
+     9100.0,
+     4500.0,
+     0.0
+    ],
+    [
+     9100.0,
+     6000.0,
+     0.0
+    ],
+    [
+     8900.0,
+     6000.0,
+     0.0
+    ],
+    [
+     8900.0,
+     4500.0,
+     0.0
+    ]
+   ],
+   "type": "POLYLINE"
+  },
+  {
+   "a": [
+    9000.0,
+    4500.0
+   ],
+   "b": [
+    9000.0,
+    6000.0
+   ],
+   "handle": "48/None",
+   "layer": "A-GLAZ",
+   "type": "LINE"
+  },
+  {
+   "center": [
+    7000.0,
+    1750.0
+   ],
+   "handle": "4C",
+   "layer": "A-FURN",
+   "radius": 300.0,
+   "type": "CIRCLE"
+  }
+ ],
+ "extents": {
+  "max": [
+   9100.0,
+   7100.0
+  ],
+  "min": [
+   0.0,
+   -900.0
+  ]
+ },
+ "format": "dxf",
+ "inserts": [
+  {
+   "at": [
+    2000.0,
+    0.0
+   ],
+   "bbox": [
+    2000.0,
+    0.0,
+    2900.0,
+    900.0
+   ],
+   "handle": "42",
+   "layer": "A-DOOR",
+   "name": "DOOR_900",
+   "rotationDeg": 0.0,
+   "scale": [
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "at": [
+    5000.0,
+    5000.0
+   ],
+   "bbox": [
+    4100.0,
+    5000.0,
+    5000.0,
+    5900.0
+   ],
+   "handle": "44",
+   "layer": "A-DOOR",
+   "name": "DOOR_900",
+   "rotationDeg": 90.0,
+   "scale": [
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "at": [
+    1750.0,
+    7000.0
+   ],
+   "bbox": [
+    1750.0,
+    6900.0,
+    3250.0,
+    7100.0
+   ],
+   "handle": "46",
+   "layer": "A-GLAZ",
+   "name": "WINDOW_1500",
+   "rotationDeg": 0.0,
+   "scale": [
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "at": [
+    9000.0,
+    4500.0
+   ],
+   "bbox": [
+    8900.0,
+    4500.0,
+    9100.0,
+    6000.0
+   ],
+   "handle": "48",
+   "layer": "A-GLAZ",
+   "name": "WINDOW_1500",
+   "rotationDeg": 90.0,
+   "scale": [
+    1.0,
+    1.0
+   ]
+  }
+ ],
+ "layers": [
+  {
+   "entityCount": 0,
+   "name": "0",
+   "types": {}
+  },
+  {
+   "entityCount": 1,
+   "name": "A-ANNO",
+   "types": {
+    "TEXT": 1
+   }
+  },
+  {
+   "entityCount": 6,
+   "name": "A-DOOR",
+   "types": {
+    "ARC": 2,
+    "INSERT": 2,
+    "LINE": 2
+   }
+  },
+  {
+   "entityCount": 2,
+   "name": "A-FURN",
+   "types": {
+    "CIRCLE": 1,
+    "SPLINE": 1
+   }
+  },
+  {
+   "entityCount": 6,
+   "name": "A-GLAZ",
+   "types": {
+    "INSERT": 2,
+    "LINE": 2,
+    "POLYLINE": 2
+   }
+  },
+  {
+   "entityCount": 0,
+   "name": "A-ROOM",
+   "types": {}
+  },
+  {
+   "entityCount": 3,
+   "name": "A-WALL",
+   "types": {
+    "LINE": 2,
+    "POLYLINE": 1
+   }
+  },
+  {
+   "entityCount": 0,
+   "name": "Defpoints",
+   "types": {}
+  }
+ ],
+ "truncated": false,
+ "units": {
+  "insunits": 0,
+  "name": "unitless",
+  "toMetres": null
+ },
+ "unsupported": [
+  {
+   "count": 1,
+   "sampleHandles": [
+    "4B"
+   ],
+   "type": "SPLINE"
+  },
+  {
+   "count": 1,
+   "sampleHandles": [
+    "4A"
+   ],
+   "type": "TEXT"
+  }
+ ],
+ "warnings": [
+  "The drawing does not declare its units ($INSUNITS = 0). The architect must confirm them."
+ ]
+}

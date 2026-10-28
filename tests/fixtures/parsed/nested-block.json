@@ -1,0 +1,180 @@
+{
+ "dxfVersion": "AC1032",
+ "entities": [
+  {
+   "closed": true,
+   "handle": "35",
+   "layer": "A-WALL",
+   "points": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     4000.0,
+     0.0,
+     0.0
+    ],
+    [
+     4000.0,
+     3000.0,
+     0.0
+    ],
+    [
+     0.0,
+     3000.0,
+     0.0
+    ]
+   ],
+   "type": "POLYLINE"
+  },
+  {
+   "a": [
+    1000.0,
+    0.0
+   ],
+   "b": [
+    1000.0,
+    900.0
+   ],
+   "handle": "41/None/None",
+   "layer": "A-DOOR",
+   "type": "LINE"
+  },
+  {
+   "center": [
+    1000.0,
+    0.0
+   ],
+   "endDeg": 90.0,
+   "handle": "41/None/None",
+   "layer": "A-DOOR",
+   "radius": 900.0,
+   "startDeg": 0.0,
+   "type": "ARC"
+  },
+  {
+   "a": [
+    950.0,
+    0.0
+   ],
+   "b": [
+    1950.0,
+    0.0
+   ],
+   "handle": "41/None",
+   "layer": "A-DOOR",
+   "type": "LINE"
+  }
+ ],
+ "extents": {
+  "max": [
+   4000.0,
+   3000.0
+  ],
+  "min": [
+   0.0,
+   -900.0
+  ]
+ },
+ "format": "dxf",
+ "inserts": [
+  {
+   "at": [
+    1000.0,
+    0.0
+   ],
+   "bbox": [
+    950.0,
+    0.0,
+    1950.0,
+    900.0
+   ],
+   "handle": "41",
+   "layer": "A-DOOR",
+   "name": "DOORSET",
+   "rotationDeg": 0.0,
+   "scale": [
+    1.0,
+    1.0
+   ]
+  },
+  {
+   "at": [
+    1000.0,
+    0.0
+   ],
+   "bbox": [
+    1000.0,
+    0.0,
+    1900.0,
+    900.0
+   ],
+   "handle": "41/None",
+   "layer": "A-DOOR",
+   "name": "DOOR_900",
+   "rotationDeg": 0.0,
+   "scale": [
+    1.0,
+    1.0
+   ]
+  }
+ ],
+ "layers": [
+  {
+   "entityCount": 0,
+   "name": "0",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-ANNO",
+   "types": {}
+  },
+  {
+   "entityCount": 5,
+   "name": "A-DOOR",
+   "types": {
+    "ARC": 1,
+    "INSERT": 2,
+    "LINE": 2
+   }
+  },
+  {
+   "entityCount": 0,
+   "name": "A-FURN",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-GLAZ",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-ROOM",
+   "types": {}
+  },
+  {
+   "entityCount": 1,
+   "name": "A-WALL",
+   "types": {
+    "POLYLINE": 1
+   }
+  },
+  {
+   "entityCount": 0,
+   "name": "Defpoints",
+   "types": {}
+  }
+ ],
+ "truncated": false,
+ "units": {
+  "insunits": 4,
+  "name": "millimetres",
+  "toMetres": 0.001
+ },
+ "unsupported": [],
+ "warnings": []
+}

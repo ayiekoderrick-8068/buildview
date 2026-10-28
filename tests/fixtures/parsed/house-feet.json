@@ -1,0 +1,375 @@
+{
+ "dxfVersion": "AC1032",
+ "entities": [
+  {
+   "closed": true,
+   "handle": "35",
+   "layer": "A-WALL",
+   "points": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     29.527559,
+     0.0,
+     0.0
+    ],
+    [
+     29.527559,
+     22.965879,
+     0.0
+    ],
+    [
+     0.0,
+     22.965879,
+     0.0
+    ]
+   ],
+   "type": "POLYLINE"
+  },
+  {
+   "a": [
+    16.404199,
+    0.0
+   ],
+   "b": [
+    16.404199,
+    22.965879
+   ],
+   "handle": "36",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    16.404199,
+    11.48294
+   ],
+   "b": [
+    29.527559,
+    11.48294
+   ],
+   "handle": "37",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    6.56168,
+    0.0
+   ],
+   "b": [
+    6.56168,
+    2.952756
+   ],
+   "handle": "42/None",
+   "layer": "A-DOOR",
+   "type": "LINE"
+  },
+  {
+   "center": [
+    6.56168,
+    0.0
+   ],
+   "endDeg": 90.0,
+   "handle": "42/None",
+   "layer": "A-DOOR",
+   "radius": 2.952756,
+   "startDeg": 0.0,
+   "type": "ARC"
+  },
+  {
+   "a": [
+    16.404199,
+    16.404199
+   ],
+   "b": [
+    13.451444,
+    16.404199
+   ],
+   "handle": "44/None",
+   "layer": "A-DOOR",
+   "type": "LINE"
+  },
+  {
+   "center": [
+    16.404199,
+    16.404199
+   ],
+   "endDeg": 180.0,
+   "handle": "44/None",
+   "layer": "A-DOOR",
+   "radius": 2.952756,
+   "startDeg": 90.0,
+   "type": "ARC"
+  },
+  {
+   "closed": true,
+   "handle": "46/None",
+   "layer": "A-GLAZ",
+   "points": [
+    [
+     5.74147,
+     22.637795,
+     0.0
+    ],
+    [
+     10.66273,
+     22.637795,
+     0.0
+    ],
+    [
+     10.66273,
+     23.293963,
+     0.0
+    ],
+    [
+     5.74147,
+     23.293963,
+     0.0
+    ]
+   ],
+   "type": "POLYLINE"
+  },
+  {
+   "a": [
+    5.74147,
+    22.965879
+   ],
+   "b": [
+    10.66273,
+    22.965879
+   ],
+   "handle": "46/None",
+   "layer": "A-GLAZ",
+   "type": "LINE"
+  },
+  {
+   "closed": true,
+   "handle": "48/None",
+   "layer": "A-GLAZ",
+   "points": [
+    [
+     29.855643,
+     14.76378,
+     0.0
+    ],
+    [
+     29.855643,
+     19.685039,
+     0.0
+    ],
+    [
+     29.199475,
+     19.685039,
+     0.0
+    ],
+    [
+     29.199475,
+     14.76378,
+     0.0
+    ]
+   ],
+   "type": "POLYLINE"
+  },
+  {
+   "a": [
+    29.527559,
+    14.76378
+   ],
+   "b": [
+    29.527559,
+    19.685039
+   ],
+   "handle": "48/None",
+   "layer": "A-GLAZ",
+   "type": "LINE"
+  },
+  {
+   "center": [
+    22.965879,
+    5.74147
+   ],
+   "handle": "4C",
+   "layer": "A-FURN",
+   "radius": 0.984252,
+   "type": "CIRCLE"
+  }
+ ],
+ "extents": {
+  "max": [
+   29.855643,
+   23.293963
+  ],
+  "min": [
+   0.0,
+   -2.952755905511811
+  ]
+ },
+ "format": "dxf",
+ "inserts": [
+  {
+   "at": [
+    6.56168,
+    0.0
+   ],
+   "bbox": [
+    6.56168,
+    0.0,
+    9.514436,
+    2.952756
+   ],
+   "handle": "42",
+   "layer": "A-DOOR",
+   "name": "DOOR_900",
+   "rotationDeg": 0.0,
+   "scale": [
+    0.00328084,
+    0.00328084
+   ]
+  },
+  {
+   "at": [
+    16.404199,
+    16.404199
+   ],
+   "bbox": [
+    13.451444,
+    16.404199,
+    16.404199,
+    19.356955
+   ],
+   "handle": "44",
+   "layer": "A-DOOR",
+   "name": "DOOR_900",
+   "rotationDeg": 90.0,
+   "scale": [
+    0.00328084,
+    0.00328084
+   ]
+  },
+  {
+   "at": [
+    5.74147,
+    22.965879
+   ],
+   "bbox": [
+    5.74147,
+    22.637795,
+    10.66273,
+    23.293963
+   ],
+   "handle": "46",
+   "layer": "A-GLAZ",
+   "name": "WINDOW_1500",
+   "rotationDeg": 0.0,
+   "scale": [
+    0.00328084,
+    0.00328084
+   ]
+  },
+  {
+   "at": [
+    29.527559,
+    14.76378
+   ],
+   "bbox": [
+    29.199475,
+    14.76378,
+    29.855643,
+    19.685039
+   ],
+   "handle": "48",
+   "layer": "A-GLAZ",
+   "name": "WINDOW_1500",
+   "rotationDeg": 90.0,
+   "scale": [
+    0.00328084,
+    0.00328084
+   ]
+  }
+ ],
+ "layers": [
+  {
+   "entityCount": 0,
+   "name": "0",
+   "types": {}
+  },
+  {
+   "entityCount": 1,
+   "name": "A-ANNO",
+   "types": {
+    "TEXT": 1
+   }
+  },
+  {
+   "entityCount": 6,
+   "name": "A-DOOR",
+   "types": {
+    "ARC": 2,
+    "INSERT": 2,
+    "LINE": 2
+   }
+  },
+  {
+   "entityCount": 2,
+   "name": "A-FURN",
+   "types": {
+    "CIRCLE": 1,
+    "SPLINE": 1
+   }
+  },
+  {
+   "entityCount": 6,
+   "name": "A-GLAZ",
+   "types": {
+    "INSERT": 2,
+    "LINE": 2,
+    "POLYLINE": 2
+   }
+  },
+  {
+   "entityCount": 0,
+   "name": "A-ROOM",
+   "types": {}
+  },
+  {
+   "entityCount": 3,
+   "name": "A-WALL",
+   "types": {
+    "LINE": 2,
+    "POLYLINE": 1
+   }
+  },
+  {
+   "entityCount": 0,
+   "name": "Defpoints",
+   "types": {}
+  }
+ ],
+ "truncated": false,
+ "units": {
+  "insunits": 2,
+  "name": "feet",
+  "toMetres": 0.3048
+ },
+ "unsupported": [
+  {
+   "count": 1,
+   "sampleHandles": [
+    "4B"
+   ],
+   "type": "SPLINE"
+  },
+  {
+   "count": 1,
+   "sampleHandles": [
+    "4A"
+   ],
+   "type": "TEXT"
+  }
+ ],
+ "warnings": []
+}

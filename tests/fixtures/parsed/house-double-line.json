@@ -1,0 +1,173 @@
+{
+ "dxfVersion": "AC1032",
+ "entities": [
+  {
+   "a": [
+    -100.0,
+    -100.0
+   ],
+   "b": [
+    6100.0,
+    -100.0
+   ],
+   "handle": "35",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    6100.0,
+    -100.0
+   ],
+   "b": [
+    6100.0,
+    4100.0
+   ],
+   "handle": "36",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    6100.0,
+    4100.0
+   ],
+   "b": [
+    -100.0,
+    4100.0
+   ],
+   "handle": "37",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    -100.0,
+    4100.0
+   ],
+   "b": [
+    -100.0,
+    -100.0
+   ],
+   "handle": "38",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    100.0,
+    100.0
+   ],
+   "b": [
+    5900.0,
+    100.0
+   ],
+   "handle": "39",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    5900.0,
+    100.0
+   ],
+   "b": [
+    5900.0,
+    3900.0
+   ],
+   "handle": "3A",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    5900.0,
+    3900.0
+   ],
+   "b": [
+    100.0,
+    3900.0
+   ],
+   "handle": "3B",
+   "layer": "A-WALL",
+   "type": "LINE"
+  },
+  {
+   "a": [
+    100.0,
+    3900.0
+   ],
+   "b": [
+    100.0,
+    100.0
+   ],
+   "handle": "3C",
+   "layer": "A-WALL",
+   "type": "LINE"
+  }
+ ],
+ "extents": {
+  "max": [
+   6100.0,
+   4100.0
+  ],
+  "min": [
+   -100.0,
+   -100.0
+  ]
+ },
+ "format": "dxf",
+ "inserts": [],
+ "layers": [
+  {
+   "entityCount": 0,
+   "name": "0",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-ANNO",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-DOOR",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-FURN",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-GLAZ",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-ROOM",
+   "types": {}
+  },
+  {
+   "entityCount": 8,
+   "name": "A-WALL",
+   "types": {
+    "LINE": 8
+   }
+  },
+  {
+   "entityCount": 0,
+   "name": "Defpoints",
+   "types": {}
+  }
+ ],
+ "truncated": false,
+ "units": {
+  "insunits": 4,
+  "name": "millimetres",
+  "toMetres": 0.001
+ },
+ "unsupported": [],
+ "warnings": []
+}

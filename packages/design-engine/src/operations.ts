@@ -70,7 +70,7 @@ function sameMaterial(a: SurfaceMaterial, b: SurfaceMaterial): boolean {
 export function moveFurniture(doc: SceneDocument, id: string, requested: Vec2): SceneDocument {
   const item = findItem(doc, id);
   if (!item.movable || item.deleted) return doc;
-  const resolved = resolveFurniturePosition(doc.room, item, doc.furniture, requested);
+  const resolved = resolveFurniturePosition(doc.rooms, item, doc.furniture, requested);
   // 0.1 mm precision: plenty for placement, and exact through JSON/PostgreSQL round trips.
   const position: Vec2 = [Math.round(resolved[0] * 1e4) / 1e4, Math.round(resolved[1] * 1e4) / 1e4];
   if (position[0] === item.position[0] && position[1] === item.position[1]) return doc;
@@ -81,7 +81,7 @@ export function rotateFurniture(doc: SceneDocument, id: string, rotationY: numbe
   const item = findItem(doc, id);
   if (!item.movable || item.deleted) return doc;
   const normalized = normalizeAngle(rotationY);
-  if (!canRotateTo(doc.room, item, doc.furniture, normalized)) return doc;
+  if (!canRotateTo(doc.rooms, item, doc.furniture, normalized)) return doc;
   if (Math.abs(normalized - item.rotationY) < 1e-9) return doc;
   return mapItem(doc, id, { rotationY: normalized });
 }

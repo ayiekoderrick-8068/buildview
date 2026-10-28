@@ -1,0 +1,110 @@
+{
+ "dxfVersion": "AC1032",
+ "entities": [
+  {
+   "closed": true,
+   "handle": "35",
+   "layer": "A-WALL",
+   "points": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     3000.0,
+     0.0,
+     0.5
+    ],
+    [
+     3000.0,
+     3000.0,
+     0.0
+    ],
+    [
+     0.0,
+     3000.0,
+     0.0
+    ]
+   ],
+   "type": "POLYLINE"
+  },
+  {
+   "center": [
+    6000.0,
+    1500.0
+   ],
+   "endDeg": 90.0,
+   "handle": "36",
+   "layer": "A-WALL",
+   "radius": 1500.0,
+   "startDeg": 270.0,
+   "type": "ARC"
+  }
+ ],
+ "extents": {
+  "max": [
+   7500.0,
+   3000.0
+  ],
+  "min": [
+   0.0,
+   0.0
+  ]
+ },
+ "format": "dxf",
+ "inserts": [],
+ "layers": [
+  {
+   "entityCount": 0,
+   "name": "0",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-ANNO",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-DOOR",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-FURN",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-GLAZ",
+   "types": {}
+  },
+  {
+   "entityCount": 0,
+   "name": "A-ROOM",
+   "types": {}
+  },
+  {
+   "entityCount": 2,
+   "name": "A-WALL",
+   "types": {
+    "ARC": 1,
+    "POLYLINE": 1
+   }
+  },
+  {
+   "entityCount": 0,
+   "name": "Defpoints",
+   "types": {}
+  }
+ ],
+ "truncated": false,
+ "units": {
+  "insunits": 4,
+  "name": "millimetres",
+  "toMetres": 0.001
+ },
+ "unsupported": [],
+ "warnings": []
+}
