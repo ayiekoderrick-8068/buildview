@@ -1,0 +1,42 @@
+{
+  "name": "buildview-ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BuildView AI - architectural visualization and interior design studio",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w @buildview/api\" \"npm run dev -w @buildview/web\"",
+    "db:up": "tsx scripts/db.ts",
+    "db:generate": "npm run db:generate -w @buildview/api",
+    "db:migrate": "npm run db:migrate -w @buildview/api",
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p tsconfig.json",
+    "screenshots": "SCREENSHOTS=1 playwright test tests/e2e/screenshots.spec.ts",
+    "lint": "eslint .",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
+    "check": "npm run typecheck && npm run lint && npm run test"
+  },
+  "overrides": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^22.10.0",
+    "concurrently": "^9.2.1",
+    "embedded-postgres": "^17.5.0-beta.15",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0"
+  }
+}

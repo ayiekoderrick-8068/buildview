@@ -1,0 +1,44 @@
+// BuildView AI persistence.
+// `document` holds the validated SceneDocument (geometry, surfaces, furniture, lighting) as JSON;
+// it is validated with Zod on every write. Room dimensions are denormalised into columns so they
+// can be queried/indexed without opening the document.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id            String   @id @default(uuid())
+  name          String
+  /// Increments on every successful save; clients send it back for optimistic concurrency.
+  revision      Int      @default(1)
+  roomLength    Float
+  roomWidth     Float
+  roomHeight    Float
+  wallThickness Float
+  document      Json
+  editorMeta    Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  revisions ProjectRevision[]
+}
+
+model ProjectRevision {
+  id         String   @id @default(uuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  revision   Int
+  name       String
+  document   Json
+  editorMeta Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@unique([projectId, revision])
+  @@index([projectId, createdAt])
+}
