@@ -12,7 +12,9 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,magenta \"npm run dev -w @buildview/api\" \"npm run dev -w @buildview/web\"",
+    "dev": "concurrently -n api,web,cad -c blue,magenta,green \"npm run dev -w @buildview/api\" \"npm run dev -w @buildview/web\" \"npm run dev -w @buildview/cad-worker\"",
+    "worker:setup": "npm run setup -w @buildview/cad-worker",
+    "worker": "npm run dev -w @buildview/cad-worker",
     "db:up": "tsx scripts/db.ts",
     "db:generate": "npm run db:generate -w @buildview/api",
     "db:migrate": "npm run db:migrate -w @buildview/api",

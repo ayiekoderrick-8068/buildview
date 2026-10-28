@@ -144,7 +144,7 @@ export function PlanToolsPanel() {
             {[0.01, 0.05, 0.1, 0.25, 0.5, 1].map((g) => <option key={g} value={g}>{g * 1000} mm</option>)}
           </select>
         </label>
-        <p className="mt-2 text-[11px] leading-snug text-[var(--bv-text-faint)]">Snapping only moves a point when a target is within {Math.round(snap.radiusM * 1000)}-ish screen-pixel range; nothing is rounded outside it. Stored lengths keep 0.01 mm resolution.</p>
+        <p className="mt-2 text-[11px] leading-snug text-[var(--bv-text-faint)]">Snapping only moves a point when a target is within 10 screen pixels of the cursor; nothing is rounded outside that range. Stored lengths keep 0.01 mm resolution.</p>
         <label className="mt-3 flex items-center justify-between text-xs text-[var(--bv-text-dim)]">
           Display units
           <select data-testid="display-unit" value={unit} onChange={(e) => setUnit(e.target.value as DisplayUnit)} className="h-8 rounded-md border border-[var(--bv-border)] bg-[var(--bv-surface-0)] px-2 text-xs text-[var(--bv-text)]">

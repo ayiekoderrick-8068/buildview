@@ -1,24 +1,22 @@
 # Roadmap and recommended next steps
 
-## Recommended for Prompt 2
+## Recommended next milestone (G): prove it on real drawings
 
-1. **2D floor plan model & editor** - generalise `buildRectangularWalls` to arbitrary closed wall polygons with
-   corner mitring, add a true 2D drawing surface (snap, dimension editing, add/remove openings), still emitting the
-   existing `SceneDocument` contract.
-2. **DXF import (not DWG yet)** - a worker that parses DXF LINE/LWPOLYLINE/ARC/INSERT layers into walls and openings
-   with an explicit *review & verify* step before conversion. DWG needs a licensed/converted pipeline (e.g. ODA)
-   - decide that deliberately; do not claim DWG support until validated on real drawings.
-3. **Asset pipeline** - glTF furniture with Draco/Meshopt + KTX2 textures into `public-assets/`, swapped in via
-   `FURNITURE_MODELS`; PBR floor/wall texture sets in the material editor.
-4. **Per-face wall materials** - interior vs exterior face and per-room assignment (currently one material per wall).
-5. **Projects UI** - project list/open/rename/delete, revision browser and restore (API already stores revisions).
+1. **Collect 5–10 anonymised real architect DXFs** (single-storey houses, different drafting standards, layer conventions, units) and add them as golden
+   fixtures. Measure recognition precision/recall per element type and tune layer heuristics. This is the single biggest unknown today.
+2. **Door/window recognition beyond block inserts**: gaps in wall line-work, swing arcs without blocks, attribute-carried heights (`ATTRIB`), and a
+   "promote line-work to opening" tool in the plan.
+3. **Wall joins**: proper mitre for non-90° corners and T-junction cleanup; arc wall drawing; wall splitting/merging tools.
+4. **DWG**: decide the licensed converter (ODA File Converter or a commercial SDK), legal review, then implement `convert_dwg` behind the existing
+   `dwg_unavailable` contract with golden DWG fixtures.
 
-## Later
+## After that
 
-- First-person walkthrough with collision against walls/furniture.
-- Auth, ownership, sharing and client approval workflow; comments pinned to walls/objects.
-- Rendered stills (server-side, GPU worker) - the in-app viewport is a real-time preview, not a ray-traced render.
-- AI-assisted layout/style suggestions operating on the same document contract (propose a patch, user approves).
-- Real-estate presentation mode (shareable read-only link, guided tour).
-- Accessibility pass on the 3D viewport (keyboard camera control, screen-reader summaries of the scene).
-- Observability: structured API logging is on; add metrics and error reporting.
+- Multi-storey: level manager, stair/slab handling, per-level plan view, vertical alignment validation.
+- Pitched/hip roofs from explicit user parameters; true outline (concave) roof/slab polygons.
+- Normalised element tables + element-level revision diffs; model-generation jobs and GLB export as derived artifacts.
+- Auth/users, roles, sharing, client approval workflow, comments pinned to elements; malware scanning in the upload path; durable job queue.
+- Per-face wall materials (interior/exterior), texture libraries, glTF furniture with Draco/KTX2 in `public-assets/`.
+- Performance pass on real hardware: FPS/memory budgets for a defined mid-range laptop, LOD/instancing, WebWorker for recognition on very large drawings.
+- Accessibility pass (keyboard-operable plan editing, screen-reader summaries), cross-browser tests.
+- Offline renders (GPU worker), real-estate presentation mode, AI-assisted suggestions that propose *patches* against the document for the architect to approve.
