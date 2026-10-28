@@ -1,39 +1,59 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { Html } from '@react-three/drei';
 import { useThree, type ThreeEvent } from '@react-three/fiber';
-import { EdgesGeometry, LineBasicMaterial, MeshBasicMaterial, type Group } from 'three';
-import { openingPlacement, wallBoxes, wallLength } from '@buildview/geometry-engine';
-import { CEILING_SURFACE_ID, FLOOR_SURFACE_ID, type Opening, type Wall } from '@buildview/shared';
+import { BoxGeometry, EdgesGeometry, ExtrudeGeometry, LineBasicMaterial, MeshBasicMaterial, Shape, ShapeGeometry, Vector2, type Group } from 'three';
+import { convexHull, insetPolygon, openingPlacement, wallBoxes, wallExtensions } from '@buildview/geometry-engine';
+import { ceilingSurfaceId, floorSurfaceId, ROOF_SURFACE_ID, type Opening, type Roof as RoofSetting, type Room as RoomModel, type Wall } from '@buildview/shared';
 import { useEditor } from '../state/editorStore.ts';
+import { buildingBounds, roomLightPoints } from './buildingInfo.ts';
 import { createWorldUvBox, useSurfaceMaterial } from './materials.ts';
 import { Part, useMaterials } from './primitives.tsx';
 import { sceneRegistry } from './registry.ts';
 
 const ACCENT = '#f0c070';
 const noRaycast = () => null;
-
-function setCursor(value: string) {
+const setCursor = (value: string) => {
   document.body.style.cursor = value;
+};
+
+/** Click handler shared by every selectable building element: ignores orbit drags, supports Shift to extend. */
+function useSelectable(kind: 'wall' | 'opening' | 'room', id: string) {
+  return (e: ThreeEvent<MouseEvent>) => {
+    if (e.delta > 4) return;
+    e.stopPropagation();
+    const s = useEditor.getState();
+    if (s.mode === 'experience') return;
+    if (kind === 'wall') s.selectWall(id, e.nativeEvent.shiftKey);
+    else s.select(kind, [id]);
+  };
 }
 
-const WallMesh = memo(function WallMesh({ wall }: { wall: Wall }) {
+interface WallMeshProps {
+  wall: Wall;
+  extStart: number;
+  extEnd: number;
+}
+
+const WallMesh = memo(function WallMesh({ wall, extStart, extEnd }: WallMeshProps) {
   const material = useSurfaceMaterial(wall.id);
   const invalidate = useThree((s) => s.invalidate);
   const selected = useEditor((s) => s.selection?.kind === 'wall' && s.selection.ids.includes(wall.id));
+  const allOpenings = useEditor((s) => s.history.present.openings);
   const groupRef = useRef<Group>(null);
   const [hover, setHover] = useState(false);
+  const onClick = useSelectable('wall', wall.id);
 
-  const boxes = useMemo(() => wallBoxes(wall), [wall]);
+  const mine = useMemo(() => allOpenings.filter((o) => o.wallId === wall.id), [allOpenings, wall.id]);
+  // Geometry depends only on this wall, its neighbours' joins and its own openings: nothing else rebuilds it.
+  const key = JSON.stringify([wall.start, wall.end, wall.thicknessM, wall.heightM, extStart, extEnd, mine.map((o) => [o.id, o.offsetM, o.widthM, o.heightM, o.sillM])]);
+  const boxes = useMemo(() => {
+    sceneRegistry.stats.wallBuilds.set(wall.id, (sceneRegistry.stats.wallBuilds.get(wall.id) ?? 0) + 1);
+    return wallBoxes(wall, mine, { start: extStart, end: extEnd });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
   const geometries = useMemo(() => boxes.map((b) => createWorldUvBox(b.size)), [boxes]);
   const outlines = useMemo(() => geometries.map((g) => new EdgesGeometry(g)), [geometries]);
-  const overlay = useMemo(
-    () => new MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.3, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
-    [],
-  );
-  const hoverOverlay = useMemo(
-    () => new MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.07, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }),
-    [],
-  );
+  const overlay = useMemo(() => new MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.3, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), []);
+  const hoverOverlay = useMemo(() => new MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.07, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), []);
   const lineMaterial = useMemo(() => new LineBasicMaterial({ color: ACCENT }), []);
 
   useEffect(() => {
@@ -58,13 +78,7 @@ const WallMesh = memo(function WallMesh({ wall }: { wall: Wall }) {
     },
     [overlay, hoverOverlay, lineMaterial],
   );
-  useEffect(() => invalidate(), [selected, hover, invalidate]);
-
-  const onClick = (e: ThreeEvent<MouseEvent>) => {
-    if (e.delta > 4) return; // the pointer travelled: that was an orbit/pan, not a click
-    e.stopPropagation();
-    useEditor.getState().selectWall(wall.id, e.nativeEvent.shiftKey);
-  };
+  useEffect(() => invalidate(), [selected, hover, boxes, invalidate]);
 
   return (
     <group ref={groupRef} name={wall.id} userData={{ wallId: wall.id }}>
@@ -103,113 +117,135 @@ const WallMesh = memo(function WallMesh({ wall }: { wall: Wall }) {
 
 function OpeningFixture({ wall, opening }: { wall: Wall; opening: Opening }) {
   const { center, rotationY } = useMemo(() => openingPlacement(wall, opening), [wall, opening]);
+  const selected = useEditor((s) => s.selection?.kind === 'opening' && s.selection.ids.includes(opening.id));
+  const onClick = useSelectable('opening', opening.id);
   const m = useMaterials({
     frame: { color: '#f4f1ea', roughness: 0.5 },
     window: { color: '#2b2f36', roughness: 0.4, metalness: 0.6 },
+    leaf: { color: '#8a6a4b', roughness: 0.6 },
   });
-  const glass = useMemo(
-    () => ({ color: '#bfe0f5', transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.1, depthWrite: false }),
-    [],
-  );
-  const { width: w, height: h } = opening;
+  const glass = useMemo(() => ({ color: '#bfe0f5', transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.1, depthWrite: false }), []);
+  const outline = useMemo(() => {
+    const box = new BoxGeometry(opening.widthM + 0.08, opening.heightM + 0.08, wall.thicknessM + 0.08);
+    const e = new EdgesGeometry(box);
+    box.dispose();
+    return e;
+  }, [opening.widthM, opening.heightM, wall.thicknessM]);
+  const lineMat = useMemo(() => new LineBasicMaterial({ color: ACCENT }), []);
+  useEffect(() => () => outline.dispose(), [outline]);
+  useEffect(() => () => lineMat.dispose(), [lineMat]);
+  const { widthM: w, heightM: h } = opening;
   const bar = 0.05;
-  const t = wall.thickness;
+  const t = wall.thicknessM;
+  const glazed = opening.kind === 'window' || opening.kind === 'glazed-door';
 
-  if (opening.kind === 'doorway') {
-    return (
-      <group position={center} rotation={[0, rotationY, 0]}>
-        <Part at={[-w / 2 - 0.02, 0, 0]} size={[0.04, h, t + 0.02]} material={m.frame} />
-        <Part at={[w / 2 + 0.02, 0, 0]} size={[0.04, h, t + 0.02]} material={m.frame} />
-        <Part at={[0, h / 2 + 0.02, 0]} size={[w + 0.08, 0.04, t + 0.02]} material={m.frame} />
-      </group>
-    );
-  }
   return (
-    <group position={center} rotation={[0, rotationY, 0]}>
-      <Part at={[-w / 2 + bar / 2, 0, 0]} size={[bar, h, 0.08]} material={m.window} />
-      <Part at={[w / 2 - bar / 2, 0, 0]} size={[bar, h, 0.08]} material={m.window} />
-      <Part at={[0, h / 2 - bar / 2, 0]} size={[w, bar, 0.08]} material={m.window} />
-      <Part at={[0, -h / 2 + bar / 2, 0]} size={[w, bar, 0.08]} material={m.window} />
-      <Part at={[0, 0, 0]} size={[bar * 0.7, h, 0.06]} material={m.window} />
-      <mesh raycast={noRaycast} renderOrder={1}>
-        <planeGeometry args={[w - bar * 2, h - bar * 2]} />
-        <meshStandardMaterial {...glass} />
-      </mesh>
-      {/* interior sill */}
-      {/* local +z faces into the room */}
-      <Part at={[0, -h / 2 - 0.015, t / 2 - 0.1]} size={[w + 0.12, 0.03, 0.24]} material={m.frame} />
+    <group position={center} rotation={[0, rotationY, 0]} name={opening.id} onClick={onClick}>
+      {opening.kind === 'doorway' || opening.kind === 'door' ? (
+        <>
+          <Part at={[-w / 2 - 0.02, 0, 0]} size={[0.04, h, t + 0.02]} material={m.frame} />
+          <Part at={[w / 2 + 0.02, 0, 0]} size={[0.04, h, t + 0.02]} material={m.frame} />
+          <Part at={[0, h / 2 + 0.02, 0]} size={[w + 0.08, 0.04, t + 0.02]} material={m.frame} />
+          {opening.kind === 'door' ? <Part at={[w * 0.46, 0, 0]} size={[w * 0.08, h, 0.03]} material={m.leaf} /> : null}
+        </>
+      ) : null}
+      {glazed ? (
+        <>
+          <Part at={[-w / 2 + bar / 2, 0, 0]} size={[bar, h, 0.08]} material={m.window} />
+          <Part at={[w / 2 - bar / 2, 0, 0]} size={[bar, h, 0.08]} material={m.window} />
+          <Part at={[0, h / 2 - bar / 2, 0]} size={[w, bar, 0.08]} material={m.window} />
+          <Part at={[0, -h / 2 + bar / 2, 0]} size={[w, bar, 0.08]} material={m.window} />
+          {w > 0.9 ? <Part at={[0, 0, 0]} size={[bar * 0.7, h, 0.06]} material={m.window} /> : null}
+          <mesh raycast={noRaycast} renderOrder={1}>
+            <planeGeometry args={[w - bar * 2, h - bar * 2]} />
+            <meshStandardMaterial {...glass} />
+          </mesh>
+        </>
+      ) : null}
+      {selected ? <lineSegments geometry={outline} material={lineMat} raycast={noRaycast} renderOrder={3} /> : null}
     </group>
   );
 }
 
-function WallDimensionLabel({ wall }: { wall: Wall }) {
-  const len = wallLength(wall);
-  const mid: [number, number, number] = [
-    (wall.start[0] + wall.end[0]) / 2 + wall.normal[0] * (wall.thickness + 0.4),
-    wall.height + 0.05,
-    (wall.start[1] + wall.end[1]) / 2 + wall.normal[1] * (wall.thickness + 0.4),
-  ];
-  return (
-    <Html position={mid} center zIndexRange={[5, 0]} style={{ pointerEvents: 'none' }}>
-      <div className="whitespace-nowrap rounded-md border border-white/10 bg-black/60 px-2 py-0.5 font-mono text-[11px] text-white/90">
-        {len.toFixed(2)} m
-      </div>
-    </Html>
-  );
-}
-
-export function Room() {
-  const walls = useEditor((s) => s.history.present.walls);
-  const room = useEditor((s) => s.history.present.room);
+function RoomSurfaces({ room, ceilingM }: { room: RoomModel; ceilingM: number }) {
+  const floorMat = useSurfaceMaterial(floorSurfaceId(room.id));
+  const ceilingMat = useSurfaceMaterial(ceilingSurfaceId(room.id), 'back');
+  const selected = useEditor((s) => s.selection?.kind === 'room' && s.selection.ids.includes(room.id));
+  const onClick = useSelectable('room', room.id);
+  const geometry = useMemo(() => new ShapeGeometry(new Shape(room.polygon.map((p) => new Vector2(p.x, p.y)))), [room.polygon]);
+  const highlight = useMemo(() => new MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0.22, depthWrite: false }), []);
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => () => geometry.dispose(), [geometry]);
+  useEffect(() => () => highlight.dispose(), [highlight]);
+  useEffect(() => invalidate(), [selected, geometry, invalidate]);
+  const lamp = useMaterials({ lamp: { color: '#fff3d6', emissive: '#ffd9a0', emissiveIntensity: 2.2, roughness: 0.4 } });
   const interior = useEditor((s) => s.history.present.lighting.interior);
-  const viewMode = useEditor((s) => s.viewMode);
-  const selection = useEditor((s) => s.selection);
-  const floorMat = useSurfaceMaterial(FLOOR_SURFACE_ID);
-  const ceilingMat = useSurfaceMaterial(CEILING_SURFACE_ID);
-  const fixtures = useMaterials({ lamp: { color: '#fff3d6', emissive: '#ffd9a0', emissiveIntensity: 0, roughness: 0.4 } });
-  const outside = useMaterials({ ground: { color: '#475645', roughness: 1 } });
-
   useEffect(() => {
-    fixtures.lamp.emissiveIntensity = interior ? 2.2 : 0;
-  }, [interior, fixtures]);
+    lamp.lamp.emissiveIntensity = interior ? 2.2 : 0;
+    invalidate();
+  }, [interior, lamp, invalidate]);
+  const lights = useMemo(() => roomLightPoints(room), [room]);
 
-  const downlights: Array<[number, number]> = [
-    [-1.2, -0.9],
-    [1.2, -0.9],
-    [-1.2, 0.9],
-    [1.2, 0.9],
-  ];
-
+  // plan (x, y) -> world (x, h, -y): a shape in the XY plane rotated -90 degrees about X.
   return (
-    <group name="room">
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.04, 0]} material={outside.ground} receiveShadow raycast={noRaycast}>
-        <planeGeometry args={[60, 60]} />
-      </mesh>
-
-      {/* Floor and ceiling: planes facing into the room, so the ceiling disappears when viewed from above. */}
-      <mesh name="floor" rotation={[-Math.PI / 2, 0, 0]} material={floorMat} receiveShadow>
-        <planeGeometry args={[room.length, room.width]} />
-      </mesh>
-      <mesh name="ceiling" rotation={[Math.PI / 2, 0, 0]} position={[0, room.height, 0]} material={ceilingMat} castShadow receiveShadow>
-        <planeGeometry args={[room.length, room.width]} />
-      </mesh>
-      {/* Single-sided discs facing down: visible from inside, culled when viewed from above. */}
-      {downlights.map(([x, z]) => (
-        <mesh key={`${x},${z}`} position={[x, room.height - 0.004, z]} rotation={[Math.PI / 2, 0, 0]} material={fixtures.lamp} raycast={noRaycast}>
+    <group name={room.id} userData={{ roomId: room.id }}>
+      <mesh name={`${room.id}:floor`} geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} material={floorMat} receiveShadow onClick={onClick} />
+      <mesh name={`${room.id}:ceiling`} geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, ceilingM, 0]} material={ceilingMat} castShadow receiveShadow raycast={noRaycast} />
+      {selected ? <mesh geometry={geometry} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} material={highlight} raycast={noRaycast} renderOrder={2} /> : null}
+      {lights.map((p, i) => (
+        <mesh key={i} position={[p.x, ceilingM - 0.004, -p.y]} rotation={[Math.PI / 2, 0, 0]} material={lamp.lamp} raycast={noRaycast}>
           <circleGeometry args={[0.11, 24]} />
         </mesh>
       ))}
+    </group>
+  );
+}
 
-      {walls.map((wall) => (
-        <WallMesh key={wall.id} wall={wall} />
+function Roof({ doc }: { doc: { walls: Wall[]; roof: RoofSetting } }) {
+  const material = useSurfaceMaterial(ROOF_SURFACE_ID);
+  const geometry = useMemo(() => {
+    const pts = doc.walls.flatMap((w) => [w.start, w.end]);
+    const hull = convexHull(pts);
+    if (hull.length < 3) return null;
+    const maxT = Math.max(...doc.walls.map((w) => w.thicknessM));
+    const grow = maxT / 2 + doc.roof.overhangM;
+    const outer = insetPolygon(hull, hull.map(() => -2 * grow)) ?? hull;
+    return new ExtrudeGeometry(new Shape(outer.map((p) => new Vector2(p.x, p.y))), { depth: doc.roof.thicknessM, bevelEnabled: false });
+  }, [doc]);
+  useEffect(() => () => geometry?.dispose(), [geometry]);
+  if (!geometry) return null;
+  const top = Math.max(...doc.walls.map((w) => w.heightM));
+  return <mesh name="roof" geometry={geometry} material={material} rotation={[-Math.PI / 2, 0, 0]} position={[0, top, 0]} castShadow receiveShadow raycast={noRaycast} />;
+}
+const useRoofSetting = () => useEditor((s) => s.history.present.roof);
+
+export function Room() {
+  const walls = useEditor((s) => s.history.present.walls);
+  const openings = useEditor((s) => s.history.present.openings);
+  const rooms = useEditor((s) => s.history.present.rooms);
+  const levels = useEditor((s) => s.history.present.levels);
+  const roof = useRoofSetting();
+  const outside = useMaterials({ ground: { color: '#475645', roughness: 1 } });
+  const ext = useMemo(() => wallExtensions(walls), [walls]);
+  const centre = useMemo(() => buildingBounds({ walls, rooms }).center, [walls, rooms]);
+  const wallsById = useMemo(() => new Map(walls.map((w) => [w.id, w])), [walls]);
+
+  return (
+    <group name="room">
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[centre.x, -0.04, -centre.y]} material={outside.ground} receiveShadow raycast={noRaycast}>
+        <planeGeometry args={[120, 120]} />
+      </mesh>
+      {rooms.map((r) => (
+        <RoomSurfaces key={r.id} room={r} ceilingM={levels.find((l) => l.id === r.levelId)?.heightM ?? levels[0]?.heightM ?? 2.8} />
       ))}
-      {walls.flatMap((wall) => wall.openings.map((o) => <OpeningFixture key={o.id} wall={wall} opening={o} />))}
-
-      {walls.map((wall) =>
-        viewMode === '2d' || (selection?.kind === 'wall' && selection.ids.includes(wall.id)) ? (
-          <WallDimensionLabel key={`dim-${wall.id}`} wall={wall} />
-        ) : null,
-      )}
+      {walls.map((w) => (
+        <WallMesh key={w.id} wall={w} extStart={ext.get(w.id)?.start ?? 0} extEnd={ext.get(w.id)?.end ?? 0} />
+      ))}
+      {openings.map((o) => {
+        const host = wallsById.get(o.wallId);
+        return host ? <OpeningFixture key={o.id} wall={host} opening={o} /> : null;
+      })}
+      {roof && walls.length >= 2 ? <Roof doc={{ walls, roof }} /> : null}
     </group>
   );
 }

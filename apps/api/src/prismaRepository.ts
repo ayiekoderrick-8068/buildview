@@ -1,4 +1,5 @@
 import { PrismaClient, type Prisma } from '@prisma/client';
+import { upgradeDocument } from '@buildview/design-engine';
 import {
   ProjectSchema,
   type Project,
@@ -17,28 +18,35 @@ type Row = {
 };
 
 function toProject(row: Row): Project {
-  // Re-validate on read so a corrupted/legacy row never reaches the editor unchecked.
+  // Documents written by Prompt 1 (schema v1) are upgraded on read, then re-validated, so a
+  // corrupted/legacy row never reaches the editor unchecked.
   return ProjectSchema.parse({
     id: row.id,
     name: row.name,
     revision: row.revision,
     updatedAt: row.updatedAt.toISOString(),
-    document: row.document,
+    document: upgradeDocument(row.document),
     editorMeta: row.editorMeta,
   });
 }
 
-const roomColumns = (document: SceneDocument) => ({
-  roomLength: document.room.length,
-  roomWidth: document.room.width,
-  roomHeight: document.room.height,
-  wallThickness: document.room.wallThickness,
+const summary = (d: SceneDocument) => ({
+  wallCount: d.walls.length,
+  openingCount: d.openings.length,
+  roomCount: d.rooms.length,
+  approved: d.approval.status === 'approved',
 });
 
 export class PrismaRepository implements ProjectRepository {
   readonly kind = 'postgres' as const;
+  readonly client: PrismaClient;
 
-  constructor(private readonly prisma: PrismaClient = new PrismaClient()) {}
+  constructor(prisma: PrismaClient = new PrismaClient()) {
+    this.client = prisma;
+  }
+  private get prisma() {
+    return this.client;
+  }
 
   async list() {
     const rows = await this.prisma.project.findMany({
@@ -54,48 +62,35 @@ export class PrismaRepository implements ProjectRepository {
   }
 
   async create(name: string, document: SceneDocument) {
+    const json = document as unknown as Prisma.InputJsonValue;
     const row = await this.prisma.project.create({
-      data: {
-        name,
-        ...roomColumns(document),
-        document: document as unknown as Prisma.InputJsonValue,
-        revisions: {
-          create: { revision: 1, name, document: document as unknown as Prisma.InputJsonValue },
-        },
-      },
+      data: { name, ...summary(document), document: json, revisions: { create: { revision: 1, name, document: json } } },
     });
     return toProject(row);
   }
 
   async save(id: string, request: SaveProjectRequest): Promise<SaveResult> {
     const { document, editorMeta, baseRevision } = request;
+    const json = document as unknown as Prisma.InputJsonValue;
     return this.prisma.$transaction(async (tx): Promise<SaveResult> => {
       // Compare-and-set on the revision so concurrent saves cannot silently overwrite each other.
       const updated = await tx.project.updateMany({
         where: { id, revision: baseRevision },
         data: {
           ...(request.name ? { name: request.name } : {}),
-          ...roomColumns(document),
-          document: document as unknown as Prisma.InputJsonValue,
+          ...summary(document),
+          document: json,
           editorMeta: editorMeta as Prisma.InputJsonValue,
           revision: { increment: 1 },
         },
       });
       if (updated.count === 0) {
         const existing = await tx.project.findUnique({ where: { id }, select: { revision: true } });
-        return existing
-          ? { status: 'conflict', currentRevision: existing.revision }
-          : { status: 'not-found' };
+        return existing ? { status: 'conflict', currentRevision: existing.revision } : { status: 'not-found' };
       }
       const row = await tx.project.findUniqueOrThrow({ where: { id } });
       await tx.projectRevision.create({
-        data: {
-          projectId: id,
-          revision: row.revision,
-          name: row.name,
-          document: document as unknown as Prisma.InputJsonValue,
-          editorMeta: editorMeta as Prisma.InputJsonValue,
-        },
+        data: { projectId: id, revision: row.revision, name: row.name, document: json, editorMeta: editorMeta as Prisma.InputJsonValue },
       });
       return { status: 'saved', project: toProject(row) };
     });
@@ -104,7 +99,8 @@ export class PrismaRepository implements ProjectRepository {
   async duplicate(id: string, name?: string) {
     const source = await this.get(id);
     if (!source) return null;
-    return this.create(name ?? `${source.name} (copy)`, source.document);
+    // Source-file references belong to the original project; the copy starts without them.
+    return this.create(name ?? `${source.name} (copy)`, { ...source.document, sources: [] });
   }
 
   async listRevisions(id: string): Promise<RevisionSummary[] | null> {

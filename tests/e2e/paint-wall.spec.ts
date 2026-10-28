@@ -26,7 +26,7 @@ test.describe('wall painting workflow', () => {
       south: await wallMaterial(page, 'wall-south'),
       west: await wallMaterial(page, 'wall-west'),
     };
-    expect(lengthBefore).toBe('5.00 m');
+    expect(lengthBefore).toBe('5.20 m'); // centre line = 5.0 m interior + one 0.2 m thickness
 
     // 3. Change colour to blue, then red, using the real UI controls.
     await properties.getByRole('button', { name: /^Sky Blue/ }).click();

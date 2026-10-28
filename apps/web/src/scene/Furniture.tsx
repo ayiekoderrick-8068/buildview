@@ -44,20 +44,22 @@ const FurnitureObject = memo(function FurnitureObject({ id }: { id: string }) {
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     const store = useEditor.getState();
+    if (store.mode !== 'design') return;
     store.selectFurniture(id);
-    if (!item.movable) return;
+    if (!item.movable || store.mode !== 'design') return;
     const hit = e.ray.intersectPlane(FLOOR, new Vector3());
     pending.id = id;
     pending.startX = e.nativeEvent.clientX;
     pending.startY = e.nativeEvent.clientY;
     pending.active = false;
-    pending.offset = hit ? [item.position[0] - hit.x, item.position[1] - hit.z] : [0, 0];
+    // plan y = -world z
+    pending.offset = hit ? [item.position[0] - hit.x, item.position[1] + hit.z] : [0, 0];
   };
 
   return (
     <group
       name={id}
-      position={[item.position[0], y, item.position[1]]}
+      position={[item.position[0], y, -item.position[1]]}
       rotation={[0, item.rotationY, 0]}
       onPointerDown={onPointerDown}
       onPointerOver={(e) => {
@@ -107,7 +109,7 @@ function DragController() {
       ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
       raycaster.setFromCamera(ndc, camera);
       if (!raycaster.ray.intersectPlane(FLOOR, point)) return;
-      useEditor.getState().dragFurnitureTo(pending.id, [point.x + pending.offset[0], point.z + pending.offset[1]]);
+      useEditor.getState().dragFurnitureTo(pending.id, [point.x + pending.offset[0], -point.z + pending.offset[1]]);
       invalidate();
     };
     const onUp = () => {

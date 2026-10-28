@@ -1,0 +1,12 @@
+{
+  "name": "@buildview/cad-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Python (FastAPI + ezdxf) CAD parsing worker. npm scripts are thin wrappers around the Python toolchain.",
+  "scripts": {
+    "setup": "uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requirements.txt",
+    "dev": ".venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8100",
+    "test": ".venv/bin/python -m pytest -q tests",
+    "fixtures": ".venv/bin/python generate_fixtures.py"
+  }
+}

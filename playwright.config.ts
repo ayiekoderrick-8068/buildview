@@ -22,6 +22,12 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1600, height: 900 } } }],
   webServer: [
     {
+      command: 'npm run dev -w @buildview/cad-worker',
+      url: 'http://127.0.0.1:8100/health',
+      reuseExistingServer: true,
+      timeout: 60_000,
+    },
+    {
       command: 'npm run dev -w @buildview/api',
       url: 'http://localhost:4000/api/health',
       reuseExistingServer: true,

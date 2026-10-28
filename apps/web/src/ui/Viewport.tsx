@@ -1,10 +1,15 @@
 import { useEffect, useState } from 'react';
+import { Vector3 } from 'three';
+import { formatLength, wallLength } from '@buildview/geometry-engine';
 import { AlertTriangle, Box, Footprints, Images, Layers, Maximize, RotateCcw, Square, X } from 'lucide-react';
 import { IconButton, Segmented, cx } from '@buildview/ui';
 import { showDiagnostics } from '../debug.ts';
 import { Studio } from '../scene/Studio.tsx';
 import { sceneRegistry } from '../scene/registry.ts';
 import { useEditor, type QualityLevel } from '../state/editorStore.ts';
+import { useUi } from '../state/uiStore.ts';
+import { useValidation } from '../state/useValidation.ts';
+import { PlanEditor } from './PlanEditor.tsx';
 
 function Diagnostics() {
   const [stats, setStats] = useState({ fps: 0, calls: 0, triangles: 0, geometries: 0, textures: 0, heap: 0 });
@@ -101,6 +106,93 @@ function Hint() {
   );
 }
 
+/**
+ * Wall-length labels over the 3D view (selected walls, or all walls in the top-down view). They are
+ * plain DOM elements positioned by projecting through the live camera, so no HTML lives inside the
+ * WebGL canvas (which makes unmounting the canvas safe).
+ */
+function DimensionLabels3D() {
+  const walls = useEditor((s) => s.history.present.walls);
+  const selection = useEditor((s) => s.selection);
+  const viewMode = useEditor((s) => s.viewMode);
+  const unit = useUi((s) => s.displayUnit);
+  const [labels, setLabels] = useState<Array<{ id: string; x: number; y: number; text: string }>>([]);
+  useEffect(() => {
+    const wanted = walls.filter((w) => viewMode === '2d' || (selection?.kind === 'wall' && selection.ids.includes(w.id)));
+    if (wanted.length === 0) {
+      setLabels([]);
+      return;
+    }
+    const tick = () => {
+      const { camera, gl } = sceneRegistry;
+      if (!camera || !gl) return;
+      camera.updateMatrixWorld();
+      const rect = gl.domElement.getBoundingClientRect();
+      setLabels(
+        wanted.flatMap((w) => {
+          const p = new Vector3((w.start.x + w.end.x) / 2, w.heightM + 0.15, -(w.start.y + w.end.y) / 2).project(camera);
+          if (p.z > 1 || Math.abs(p.x) > 1.1 || Math.abs(p.y) > 1.1) return [];
+          return [{ id: w.id, x: ((p.x + 1) / 2) * rect.width, y: ((1 - p.y) / 2) * rect.height, text: formatLength(wallLength(w), unit) }];
+        }),
+      );
+    };
+    tick();
+    const t = window.setInterval(tick, 120);
+    return () => window.clearInterval(t);
+  }, [walls, selection, viewMode, unit]);
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden" aria-hidden="true" data-testid="dimension-labels">
+      {labels.map((l) => (
+        <div key={l.id} style={{ left: l.x, top: l.y }} className="absolute -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-md border border-white/10 bg-black/60 px-2 py-0.5 font-mono text-[11px] text-white/90">{l.text}</div>
+      ))}
+    </div>
+  );
+}
+
+/** Chooses what fills the workspace: the 2D plan editor (Build), the 3D studio (Design) or the walkthrough (Experience). */
+function ViewportBody() {
+  const mode = useEditor((s) => s.mode);
+  const layout = useUi((s) => s.buildLayout);
+  const setLayout = useUi((s) => s.setBuildLayout);
+  if (mode === 'build') {
+    return (
+      <div className="flex h-full w-full" data-testid="build-workspace">
+        <div className={cx('relative h-full min-w-0', layout === 'split' ? 'w-1/2 border-r border-[var(--bv-border)]' : 'w-full')}>
+          <PlanEditor />
+          <div className="absolute left-3 top-3 z-20 rounded-xl border border-white/10 bg-black/55 p-1 backdrop-blur-md">
+            <Segmented label="Build layout" value={layout} onChange={setLayout} options={[{ value: '2d', label: '2D plan' }, { value: 'split', label: '2D + 3D' }]} />
+          </div>
+        </div>
+        {layout === 'split' ? (
+          <div className="relative h-full w-1/2 min-w-0" data-testid="split-3d">
+            <Studio />
+            <DimensionLabels3D />
+            <div className="absolute bottom-3 left-3 rounded-lg border border-white/10 bg-black/55 px-2.5 py-1 text-[11px] text-white/70 backdrop-blur-md">Live 3D of the same model</div>
+            {showDiagnostics ? <Diagnostics /> : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <>
+      <Studio />
+      <DimensionLabels3D />
+      {mode === 'design' ? <ViewControls /> : null}
+      {mode === 'design' ? <Hint /> : <WalkHint />}
+      {showDiagnostics ? <Diagnostics /> : null}
+    </>
+  );
+}
+
+function WalkHint() {
+  return (
+    <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full border border-white/10 bg-black/45 px-3.5 py-1.5 text-[11px] text-white/70 backdrop-blur-md" data-testid="walk-hint">
+      W A S D to walk · drag to look · you cannot pass through walls
+    </div>
+  );
+}
+
 export function Viewport() {
   const loadState = useEditor((s) => s.loadState);
   const loadError = useEditor((s) => s.loadError);
@@ -110,19 +202,12 @@ export function Viewport() {
 
   return (
     <div className="relative min-h-0 flex-1 overflow-hidden bg-[#0b0e12]" data-testid="viewport">
-      {loadState === 'ready' ? <Studio /> : null}
+      {loadState === 'ready' ? <ViewportBody /> : null}
       {loadState === 'loading' ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-[var(--bv-text-dim)]" role="status">
           <Box className="bv-spin text-[var(--bv-accent)]" size={28} />
           Loading studio…
         </div>
-      ) : null}
-      {loadState === 'ready' ? (
-        <>
-          <ViewControls />
-          <Hint />
-          {showDiagnostics ? <Diagnostics /> : null}
-        </>
       ) : null}
 
       {storage === 'memory' ? (
@@ -157,8 +242,11 @@ export function Viewport() {
 }
 
 export function BottomStrip() {
-  const viewMode = useEditor((s) => s.viewMode);
-  const setViewMode = useEditor((s) => s.setViewMode);
+  const mode = useEditor((s) => s.mode);
+  const setMode = useEditor((s) => s.setMode);
+  const walls = useEditor((s) => s.history.present.walls.length);
+  const validation = useValidation();
+  const blocked = walls === 0 ? 'Draw or import walls first.' : validation.blocking ? 'Fix the critical plan issues first.' : undefined;
   const card = (
     label: string,
     icon: React.ReactNode,
@@ -183,15 +271,15 @@ export function BottomStrip() {
       <span className={opts.active ? 'text-[var(--bv-accent)]' : ''}>{icon}</span>
       <span className="flex flex-col leading-tight">
         <span>{label}</span>
-        {opts.disabledReason ? <span className="text-[10px] text-[var(--bv-text-faint)]">Coming later</span> : null}
+        {opts.disabledReason ? <span className="text-[10px] text-[var(--bv-text-faint)]">{opts.disabledReason.length < 28 ? opts.disabledReason : 'Unavailable'}</span> : null}
       </span>
     </button>
   );
   return (
     <div className="flex shrink-0 items-center gap-3 overflow-x-auto border-t border-[var(--bv-border)] bg-[var(--bv-surface-1)] px-4 py-3" data-testid="bottom-strip">
-      {card('Floor plan', <Square size={18} />, { active: viewMode === '2d', onClick: () => setViewMode('2d'), testId: 'strip-plan' })}
-      {card('3D view', <Layers size={18} />, { active: viewMode === '3d', onClick: () => setViewMode('3d'), testId: 'strip-3d' })}
-      {card('Walkthrough', <Footprints size={18} />, { disabledReason: 'First-person walkthrough is not implemented yet.' })}
+      {card('Floor plan', <Square size={18} />, { active: mode === 'build', onClick: () => setMode('build'), testId: 'strip-plan' })}
+      {card('3D view', <Layers size={18} />, { active: mode === 'design', onClick: () => setMode('design'), testId: 'strip-3d', disabledReason: blocked })}
+      {card('Walkthrough', <Footprints size={18} />, { active: mode === 'experience', onClick: () => setMode('experience'), testId: 'strip-walk', disabledReason: blocked })}
       {card('Alternative designs', <Images size={18} />, { disabledReason: 'Design alternatives are not implemented yet.' })}
     </div>
   );

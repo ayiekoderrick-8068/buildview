@@ -14,17 +14,18 @@ beforeEach(() => {
 });
 
 describe('PropertiesPanel', () => {
-  it('shows an empty state with room dimensions when nothing is selected', () => {
+  it('shows an empty state with a building summary when nothing is selected', () => {
     render(<PropertiesPanel />);
     expect(screen.getByText('Nothing selected')).toBeInTheDocument();
-    expect(screen.getByText('5.00 m')).toBeInTheDocument();
+    expect(screen.getByText('Storey height')).toBeInTheDocument();
+    expect(screen.getByText('2.80 m')).toBeInTheDocument();
   });
 
   it('shows the selected wall id, true dimensions and current paint', () => {
     useEditor.getState().selectWall('wall-east');
     render(<PropertiesPanel />);
     expect(screen.getByTestId('wall-id')).toHaveTextContent('wall-east');
-    expect(screen.getByTestId('wall-length')).toHaveTextContent('4.00 m');
+    expect(screen.getByTestId('wall-length')).toHaveTextContent('4.20 m'); // centre line = interior 4.0 + one thickness
     expect(screen.getByTestId('wall-height')).toHaveTextContent('2.80 m');
     expect(screen.getByTestId('wall-thickness')).toHaveTextContent('0.20 m');
     expect(screen.getByTestId('current-color')).toHaveTextContent('#9CAF88'); // Sage Green accent wall
@@ -38,7 +39,20 @@ describe('PropertiesPanel', () => {
     expect(surfaces['wall-north']?.color).toBe('#C4553B');
     expect(surfaces['wall-south']?.color).toBe('#F1EEE6');
     expect(screen.getByTestId('current-color')).toHaveTextContent('#C4553B');
-    expect(screen.getByTestId('wall-length')).toHaveTextContent('5.00 m');
+    expect(screen.getByTestId('wall-length')).toHaveTextContent('5.20 m');
+  });
+
+  it('edits the floor and ceiling finish of a selected room', () => {
+    useEditor.getState().select('room', ['room-living']);
+    render(<PropertiesPanel />);
+    expect(screen.getByTestId('room-id')).toHaveTextContent('room-living');
+    expect(screen.getByTestId('room-area')).toHaveTextContent('20.00 m²');
+    fireEvent.click(screen.getByRole('button', { name: /^Sage Green/ }));
+    expect(useEditor.getState().history.present.surfaces['room-living:floor']?.color).toBe('#9CAF88');
+    fireEvent.click(screen.getByRole('radio', { name: 'Ceiling' }));
+    fireEvent.click(screen.getByRole('button', { name: /^Charcoal/ }));
+    expect(useEditor.getState().history.present.surfaces['room-living:ceiling']?.color).toBe('#3A3D42');
+    expect(useEditor.getState().history.present.surfaces['wall-north']?.color).toBe('#F1EEE6');
   });
 
   it('applies a colour to all walls when the scope is "All walls"', () => {

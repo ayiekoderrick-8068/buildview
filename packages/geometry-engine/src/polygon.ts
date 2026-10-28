@@ -86,6 +86,24 @@ export function bounds(points: readonly Pt[]): { min: Pt; max: Pt } | null {
   return { min, max };
 }
 
+/** Convex hull (Andrew's monotone chain), counter-clockwise. */
+export function convexHull(points: readonly Pt[]): Pt[] {
+  const pts = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  if (pts.length < 3) return pts;
+  const cross = (o: Pt, a: Pt, b: Pt) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower: Pt[] = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2]!, lower[lower.length - 1]!, p) <= 1e-12) lower.pop();
+    lower.push(p);
+  }
+  const upper: Pt[] = [];
+  for (const p of [...pts].reverse()) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2]!, upper[upper.length - 1]!, p) <= 1e-12) upper.pop();
+    upper.push(p);
+  }
+  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
+}
+
 /** Removes consecutive duplicate and collinear vertices. */
 export function simplifyPolygon(poly: readonly Pt[], tol = 1e-6): Pt[] {
   let pts = [...poly];

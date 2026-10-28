@@ -125,9 +125,15 @@ def parse_dxf(data: bytes, max_entities: int = 100_000) -> dict[str, Any]:
                     continue
                 c = _xy(e.dxf.center)
                 r = float(e.dxf.radius)
+                a0 = float(e.dxf.start_angle)
+                a1 = float(e.dxf.end_angle)
+                sweep = (a1 - a0) % 360 or 360.0
+                # exact arc bounds: both end points plus any axis crossing inside the sweep
+                angles = [a0, a0 + sweep] + [q for q in (0.0, 90.0, 180.0, 270.0, 360.0, 450.0) if a0 < q < a0 + sweep or a0 < q + 360 < a0 + sweep]
+                arc_pts = [[c[0] + r * math.cos(math.radians(a)), c[1] + r * math.sin(math.radians(a))] for a in angles]
                 add(
-                    {"type": "ARC", "handle": handle, "layer": layer, "center": c, "radius": round(r, 6), "startDeg": round(float(e.dxf.start_angle), 6), "endDeg": round(float(e.dxf.end_angle), 6)},
-                    [[c[0] - r, c[1] - r], [c[0] + r, c[1] + r]],
+                    {"type": "ARC", "handle": handle, "layer": layer, "center": c, "radius": round(r, 6), "startDeg": round(a0, 6), "endDeg": round(a1, 6)},
+                    arc_pts,
                 )
             elif kind == "CIRCLE":
                 c = _xy(e.dxf.center)

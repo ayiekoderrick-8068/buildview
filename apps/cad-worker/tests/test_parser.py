@@ -57,6 +57,7 @@ def test_feet_units():
     assert r["units"]["name"] == "feet" and r["units"]["toMetres"] == 0.3048
     # east wall at 9000 mm plus the rotated window block's 100 mm half-thickness
     assert r["extents"]["max"][0] == pytest.approx(9100 / 304.8, rel=1e-3)
+    assert r["extents"]["max"][1] == pytest.approx(7100 / 304.8, rel=1e-3)  # arcs contribute exact bounds, not their full circle
 
 
 def test_nested_blocks_are_expanded_with_transforms():

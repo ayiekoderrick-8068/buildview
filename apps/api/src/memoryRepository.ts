@@ -58,8 +58,8 @@ export class MemoryRepository implements ProjectRepository {
   async duplicate(id: string, name?: string) {
     const source = this.projects.get(id);
     if (!source) return null;
-    const copy = await this.create(name ?? `${source.name} (copy)`, source.document);
-    return copy;
+    // Source-file references belong to the original project; the copy starts without them.
+    return this.create(name ?? `${source.name} (copy)`, { ...source.document, sources: [] });
   }
 
   async listRevisions(id: string): Promise<RevisionSummary[] | null> {

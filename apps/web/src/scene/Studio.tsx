@@ -6,13 +6,10 @@ import { CameraRig } from './CameraRig.tsx';
 import { Furniture } from './Furniture.tsx';
 import { Lighting } from './Lighting.tsx';
 import { Room } from './Room.tsx';
+import { WalkRig } from './WalkRig.tsx';
 import { sceneRegistry } from './registry.ts';
 
-const DPR: Record<QualityLevel, number | [number, number]> = {
-  high: [1, 2],
-  balanced: [1, 1.5],
-  low: 1,
-};
+const DPR: Record<QualityLevel, number | [number, number]> = { high: [1, 2], balanced: [1, 1.5], low: 1 };
 
 /** Publishes live renderer handles for diagnostics and test hooks, and counts rendered frames. */
 function SceneBridge() {
@@ -38,6 +35,7 @@ function SceneBridge() {
 
 export function Studio() {
   const quality = useEditor((s) => s.quality);
+  const mode = useEditor((s) => s.mode);
   const clearSelection = useEditor((s) => s.clearSelection);
 
   return (
@@ -52,7 +50,7 @@ export function Studio() {
     >
       <Suspense fallback={null}>
         <SceneBridge />
-        <CameraRig />
+        {mode === 'experience' ? <WalkRig /> : <CameraRig />}
         <Lighting />
         <Room />
         <Furniture />

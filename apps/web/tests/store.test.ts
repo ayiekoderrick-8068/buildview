@@ -71,7 +71,9 @@ describe('painting', () => {
     expect(color('wall-south')).toBe(before.surfaces['wall-south']?.color);
     expect(color('wall-west')).toBe(before.surfaces['wall-west']?.color);
     expect(after.walls).toBe(before.walls);
-    expect(after.room).toEqual({ length: 5, width: 4, height: 2.8, wallThickness: 0.2 });
+    expect(after.openings).toBe(before.openings);
+    expect(after.rooms).toBe(before.rooms);
+    expect(after.levels[0]?.heightM).toBe(2.8);
   });
 
   it('marks the project dirty, and clean again after undo', () => {

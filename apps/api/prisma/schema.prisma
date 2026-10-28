@@ -1,7 +1,8 @@
 // BuildView AI persistence.
-// `document` holds the validated SceneDocument (geometry, surfaces, furniture, lighting) as JSON;
-// it is validated with Zod on every write. Room dimensions are denormalised into columns so they
-// can be queried/indexed without opening the document.
+// `document` holds the validated building document (levels, walls, openings, rooms, surfaces,
+// furniture, lighting, source references) as JSON; it is validated with Zod on every write and
+// every save is kept as an immutable ProjectRevision. Summary counts are denormalised into columns.
+// CAD files and import jobs ARE normalised (CadSource / ImportJob / DrawingLayer).
 
 generator client {
   provider = "prisma-client-js"
@@ -17,16 +18,70 @@ model Project {
   name          String
   /// Increments on every successful save; clients send it back for optimistic concurrency.
   revision      Int      @default(1)
-  roomLength    Float
-  roomWidth     Float
-  roomHeight    Float
-  wallThickness Float
+  /// Queryable summary of the document (denormalised on every save).
+  wallCount     Int      @default(0)
+  openingCount  Int      @default(0)
+  roomCount     Int      @default(0)
+  approved      Boolean  @default(false)
   document      Json
   editorMeta    Json     @default("{}")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   revisions ProjectRevision[]
+  sources   CadSource[]
+}
+
+/// An uploaded CAD file. The original bytes live in private file storage (never modified, never served
+/// publicly); this row records what was uploaded and its SHA-256.
+model CadSource {
+  id           String   @id @default(uuid())
+  projectId    String
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  originalName String
+  safeName     String
+  format       String // "dxf" | "dwg"
+  sizeBytes    Int
+  sha256       String
+  storagePath  String
+  /// No malware scanner is installed in this deployment; stays "not-scanned" until one is wired in.
+  scanStatus   String   @default("not-scanned")
+  createdAt    DateTime @default(now())
+
+  jobs ImportJob[]
+
+  @@index([projectId, createdAt])
+}
+
+model ImportJob {
+  id           String    @id @default(uuid())
+  sourceId     String
+  source       CadSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  /// queued | running | succeeded | failed
+  status       String    @default("queued")
+  attempt      Int       @default(1)
+  errorCode    String?
+  errorMessage String?
+  /// Validated CadParseResult (geometry in drawing units). Null until the job succeeds.
+  result       Json?
+  createdAt    DateTime  @default(now())
+  startedAt    DateTime?
+  finishedAt   DateTime?
+
+  layers DrawingLayer[]
+
+  @@index([sourceId, createdAt])
+}
+
+model DrawingLayer {
+  id          String    @id @default(uuid())
+  jobId       String
+  job         ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name        String
+  entityCount Int
+  types       Json
+
+  @@index([jobId])
 }
 
 model ProjectRevision {

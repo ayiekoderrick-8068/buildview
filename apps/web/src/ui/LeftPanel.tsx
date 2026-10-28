@@ -1,12 +1,14 @@
-import { Lamp, Paintbrush, Sofa, Trees, Frame, Moon, Sun, Undo2 } from 'lucide-react';
+import { Footprints, Frame, Lamp, LayoutGrid, Moon, Paintbrush, Sofa, Sun, Trees, Undo2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Section, Segmented, Slider, Toggle, cx } from '@buildview/ui';
 import { useEditor } from '../state/editorStore.ts';
 import { useUi, type ToolId } from '../state/uiStore.ts';
 import { PaintPalette, ScopeSelector } from './MaterialEditor.tsx';
+import { ImportPanel, LayersPanel, PlanToolsPanel } from './BuildPanels.tsx';
 
 const TOOLS: Array<{ id: ToolId; label: string; icon: ReactNode; available: boolean }> = [
   { id: 'paint', label: 'Paint', icon: <Paintbrush size={20} />, available: true },
+  { id: 'surfaces', label: 'Floors', icon: <LayoutGrid size={20} />, available: true },
   { id: 'furniture', label: 'Furniture', icon: <Sofa size={20} />, available: true },
   { id: 'lighting', label: 'Lighting', icon: <Lamp size={20} />, available: true },
   { id: 'decor', label: 'Décor', icon: <Frame size={20} />, available: false },
@@ -30,6 +32,33 @@ function PaintTool() {
         </p>
       </Section>
     </>
+  );
+}
+
+function SurfacesTool() {
+  const rooms = useEditor((s) => s.history.present.rooms);
+  const selection = useEditor((s) => s.selection);
+  const select = useEditor((s) => s.select);
+  return (
+    <Section title="Floors & ceilings">
+      {rooms.length === 0 ? (
+        <p className="text-xs text-[var(--bv-text-dim)]">No rooms yet. Detect or draw rooms in Build mode.</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {rooms.map((r) => {
+            const on = selection?.kind === 'room' && selection.ids.includes(r.id);
+            return (
+              <li key={r.id}>
+                <button type="button" data-testid={`room-item-${r.id}`} aria-pressed={on} onClick={() => select('room', [r.id])} className={cx('flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-[var(--bv-accent)]', on ? 'border-[var(--bv-accent)]/60 bg-[var(--bv-accent)]/10 text-[var(--bv-text)]' : 'border-[var(--bv-border)] bg-[var(--bv-surface-0)] text-[var(--bv-text-dim)] hover:text-[var(--bv-text)]')}>
+                  {r.name}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="mt-4 text-[11px] leading-snug text-[var(--bv-text-faint)]">Select a room (or click its floor in the 3D view), then edit the floor and ceiling finish in the Properties panel.</p>
+    </Section>
   );
 }
 
@@ -126,7 +155,50 @@ function ComingSoon({ title }: { title: string }) {
   );
 }
 
+function BuildLeft() {
+  const tab = useUi((s) => s.leftTab);
+  const setTab = useUi((s) => s.setLeftTab);
+  const tabs: Array<[typeof tab, string]> = [['tools', 'Tools'], ['import', 'Import'], ['layers', 'Layers']];
+  return (
+    <div className="flex h-full min-h-0 w-[19rem] flex-col border-r border-[var(--bv-border)] bg-[var(--bv-surface-1)]" data-testid="left-panel">
+      <div role="tablist" className="flex shrink-0 border-b border-[var(--bv-border)]">
+        {tabs.map(([id, label]) => (
+          <button key={id} role="tab" type="button" aria-selected={tab === id} data-testid={`left-tab-${id}`} onClick={() => setTab(id)} className={cx('relative h-12 flex-1 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-[var(--bv-accent)]', tab === id ? 'font-medium text-[var(--bv-text)] after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-[var(--bv-accent)]' : 'text-[var(--bv-text-dim)] hover:text-[var(--bv-text)]')}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="bv-fade-in min-h-0 flex-1 overflow-y-auto" key={tab}>
+        {tab === 'tools' ? <PlanToolsPanel /> : tab === 'import' ? <ImportPanel /> : <LayersPanel />}
+      </div>
+    </div>
+  );
+}
+
+function ExperienceLeft() {
+  return (
+    <div className="w-[17.5rem] border-r border-[var(--bv-border)] bg-[var(--bv-surface-1)]" data-testid="left-panel">
+      <Section title="Walkthrough">
+        <p className="mb-3 flex items-center gap-2 text-sm text-[var(--bv-text)]"><Footprints size={16} className="text-[var(--bv-accent)]" /> First-person view</p>
+        <ul className="space-y-1.5 text-xs text-[var(--bv-text-dim)]">
+          <li><kbd className="rounded bg-[var(--bv-surface-3)] px-1.5">W A S D</kbd> move</li>
+          <li><kbd className="rounded bg-[var(--bv-surface-3)] px-1.5">← →</kbd> turn</li>
+          <li>Drag the view to look around</li>
+        </ul>
+        <p className="mt-4 text-[11px] leading-snug text-[var(--bv-text-faint)]">Walls and window sills block you; door openings can be walked through. There is no collision with furniture, stairs or gravity yet.</p>
+      </Section>
+    </div>
+  );
+}
+
 export function LeftPanel() {
+  const mode = useEditor((s) => s.mode);
+  if (mode === 'build') return <BuildLeft />;
+  if (mode === 'experience') return <ExperienceLeft />;
+  return <DesignLeft />;
+}
+
+function DesignLeft() {
   const tool = useUi((s) => s.tool);
   const setTool = useUi((s) => s.setTool);
   return (
@@ -158,6 +230,7 @@ export function LeftPanel() {
       <div className="min-h-0 w-[17.5rem] overflow-y-auto" key={tool}>
         <div className="bv-fade-in">
           {tool === 'paint' ? <PaintTool /> : null}
+          {tool === 'surfaces' ? <SurfacesTool /> : null}
           {tool === 'furniture' ? <FurnitureTool /> : null}
           {tool === 'lighting' ? <LightingTool /> : null}
           {tool === 'decor' ? <ComingSoon title="Décor" /> : null}

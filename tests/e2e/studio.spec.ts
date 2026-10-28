@@ -66,11 +66,11 @@ test.describe('studio interactions', () => {
     await page.waitForTimeout(600);
     expect(await shot()).not.toBe(evening);
 
-    await page.getByTestId('strip-plan').click();
+    await page.getByRole('radio', { name: '2D plan' }).click();
     await expect.poll(async () => (await appState(page)).viewMode).toBe('2d');
     await page.waitForTimeout(600);
-    await expect(page.getByText('5.00 m').first()).toBeVisible(); // dimension labels in plan view
-    await page.getByTestId('strip-3d').click();
+    await expect(page.getByText('5.200 m').first()).toBeVisible(); // wall dimension labels in the top-down view
+    await page.getByRole('radio', { name: '3D' }).click();
     await expect.poll(async () => (await appState(page)).viewMode).toBe('3d');
   });
 
@@ -120,13 +120,13 @@ test.describe('studio interactions', () => {
 
     // fit room moves to the overview pose (outside the room)
     await page.getByTestId('camera-fit').click();
-    await expect.poll(async () => (await camera()).position[0]).toBeGreaterThan(5);
+    await expect.poll(async () => (await camera()).position[0]).toBeGreaterThan(3);
 
     // plan mode uses an orthographic camera looking straight down
-    await page.getByTestId('strip-plan').click();
+    await page.getByRole('radio', { name: '2D plan' }).click();
     await expect.poll(async () => (await camera()).type).toBe('OrthographicCamera');
     const plan = await camera();
-    expect(plan.position[1]).toBeGreaterThan(10);
+    expect(plan.position[1]).toBeGreaterThan(20);
     expect(Math.abs(plan.position[0])).toBeLessThan(0.01);
   });
 

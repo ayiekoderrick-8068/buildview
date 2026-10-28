@@ -50,12 +50,22 @@ def window_block(doc, name="WINDOW_1500", w=1500.0, t=200.0):
     return blk
 
 
-def house(unit: int | None, k: float = 1.0, extras: bool = True):
-    """Single-storey house, centreline walls, mm * k. 9 m x 7 m: living room (west) + two rooms (east)."""
+def house(unit: int | None, k: float = 1.0, extras: bool = True, gap: bool = False):
+    """Single-storey house, centreline walls, mm * k. 9 m x 7 m: living room (west) + two rooms (east).
+
+    gap=True draws the exterior as four LINEs and stops the north wall 300 mm short of the north-east
+    corner, so the room boundary is open (a realistic drafting error for the validation workflow)."""
     doc = new_doc(unit)
     msp = doc.modelspace()
     s = lambda v: v * k  # noqa: E731
-    msp.add_lwpolyline([(s(0), s(0)), (s(9000), s(0)), (s(9000), s(7000)), (s(0), s(7000))], close=True, dxfattribs={"layer": "A-WALL"})
+    if gap:
+        w = {"layer": "A-WALL"}
+        msp.add_line((s(0), s(0)), (s(9000), s(0)), dxfattribs=w)
+        msp.add_line((s(9000), s(0)), (s(9000), s(7000)), dxfattribs=w)
+        msp.add_line((s(8700), s(7000)), (s(0), s(7000)), dxfattribs=w)
+        msp.add_line((s(0), s(7000)), (s(0), s(0)), dxfattribs=w)
+    else:
+        msp.add_lwpolyline([(s(0), s(0)), (s(9000), s(0)), (s(9000), s(7000)), (s(0), s(7000))], close=True, dxfattribs={"layer": "A-WALL"})
     msp.add_line((s(5000), s(0)), (s(5000), s(7000)), dxfattribs={"layer": "A-WALL"})
     msp.add_line((s(5000), s(3500)), (s(9000), s(3500)), dxfattribs={"layer": "A-WALL"})
     door_block(doc)
@@ -123,6 +133,7 @@ def arcs_and_bulges():
 
 FIXTURES = {
     "house-mm": lambda: house(ezunits.MM),
+    "house-gap": lambda: house(ezunits.MM, gap=True),
     "house-feet": lambda: house(ezunits.FT, k=1 / 304.8),
     "house-missing-units": lambda: house(None),
     "house-double-line": double_line,

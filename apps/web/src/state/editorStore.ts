@@ -1,5 +1,10 @@
 import { create } from 'zustand';
 import {
+  acknowledgeIssue,
+  addOpening,
+  addRoom,
+  addWall,
+  approveModel,
   canRedo,
   canUndo,
   commit,
@@ -7,26 +12,41 @@ import {
   createHistory,
   createSampleDocument,
   deleteFurniture,
+  deleteOpening,
+  deleteRoom,
+  deleteWall,
+  detectMissingRooms,
+  ensureSurfaces,
+  markReviewed,
   moveFurniture,
+  moveOpening,
   normalizeAngle,
   redo as redoHistory,
   replacePresent,
   resetFurniture,
   restoreFurniture,
+  revokeApprovalIfEdited,
   rotateFurniture,
   setLighting,
+  setRoof,
+  setWallHeight,
+  setWallLength,
+  setWallThickness,
   undo as undoHistory,
+  updateOpening,
   updateSurfaces,
   type History,
   type SurfacePatch,
 } from '@buildview/design-engine';
-import type { Lighting, Project, SceneDocument, Vec2 } from '@buildview/shared';
+import { hasBlockingIssues, validateDocument } from '@buildview/geometry-engine';
+import type { Lighting, Opening, Project, Pt, SceneDocument, SourceRef, ValidationIssue, Vec2 } from '@buildview/shared';
 import { api, ApiError } from '../api/client.ts';
 
 export type ViewMode = '3d' | '2d';
+export type WorkMode = 'build' | 'design' | 'experience';
 export type QualityLevel = 'high' | 'balanced' | 'low';
 export type StorageMode = 'postgres' | 'memory' | 'offline';
-export type Selection = { kind: 'wall' | 'furniture'; ids: string[] } | null;
+export type Selection = { kind: 'wall' | 'opening' | 'room' | 'furniture'; ids: string[] } | null;
 export type SaveStatus = 'idle' | 'saving' | 'error';
 export type CameraCommand = { type: 'reset' | 'fit'; nonce: number };
 
@@ -42,11 +62,12 @@ export interface EditorState {
   dirty: boolean;
   save: { status: SaveStatus; error: string | null; lastSavedAt: number | null };
 
+  mode: WorkMode;
   selection: Selection;
   viewMode: ViewMode;
   quality: QualityLevel;
   cameraCommand: CameraCommand | null;
-  /** True while a furniture drag is in progress (disables orbit controls). */
+  /** True while a drag (furniture or plan editing) is in progress. */
   dragging: boolean;
   dragBase: SceneDocument | null;
 
@@ -54,21 +75,42 @@ export interface EditorState {
   initialize: () => Promise<void>;
   loadProject: (project: Project, storage: StorageMode) => void;
   loadLocalSample: (reason: string) => void;
+  setMode: (mode: WorkMode) => void;
   // selection
+  select: (kind: NonNullable<Selection>['kind'], ids: string[]) => void;
   selectWall: (id: string, additive?: boolean) => void;
   selectFurniture: (id: string) => void;
   clearSelection: () => void;
-  // editing
+  // appearance
   paint: (surfaceIds: string[], patch: SurfacePatch, coalesceKey?: string) => void;
+  // transient drags
   beginDrag: () => void;
+  dragEdit: (edit: (doc: SceneDocument) => SceneDocument) => void;
   dragFurnitureTo: (id: string, position: Vec2) => void;
   endDrag: () => void;
+  // furniture
   rotateFurnitureBy: (id: string, deltaRad: number) => void;
   setFurnitureRotation: (id: string, rotationY: number) => void;
   resetFurnitureTransform: (id: string) => void;
   removeFurniture: (id: string) => void;
   restoreRemovedFurniture: (id: string) => void;
   updateLighting: (patch: Partial<Lighting>) => void;
+  // plan editing
+  addWallSegment: (start: Pt, end: Pt) => string | null;
+  setWallLengthM: (id: string, lengthM: number) => void;
+  setWallThicknessM: (id: string, m: number) => void;
+  setWallHeightM: (id: string, m: number) => void;
+  addOpeningAt: (kind: Opening['kind'], at: Pt) => string | null;
+  moveOpeningTo: (id: string, offsetM: number) => void;
+  patchOpening: (id: string, patch: Partial<Pick<Opening, 'widthM' | 'heightM' | 'sillM' | 'kind'>>) => void;
+  addRoomPolygon: (polygon: Pt[]) => string | null;
+  detectRooms: () => void;
+  deleteSelection: () => void;
+  markSelectionReviewed: (ids?: string[]) => void;
+  acknowledge: (key: string, on: boolean) => void;
+  setRoofSettings: (roof: SceneDocument['roof']) => void;
+  approve: () => { ok: boolean; issues: ValidationIssue[] };
+  applyImport: (parts: Pick<SceneDocument, 'levels' | 'walls' | 'openings' | 'rooms'>, source: SourceRef) => void;
   undo: () => void;
   redo: () => void;
   // view
@@ -100,45 +142,47 @@ function isDirty(doc: SceneDocument, saved: SceneDocument | null): boolean {
 
 function validSelection(sel: Selection, doc: SceneDocument): Selection {
   if (!sel) return sel;
-  const ids = sel.ids.filter((id) =>
-    sel.kind === 'wall'
-      ? doc.walls.some((w) => w.id === id)
-      : doc.furniture.some((f) => f.id === id && !f.deleted),
-  );
+  const exists = (id: string) => {
+    switch (sel.kind) {
+      case 'wall':
+        return doc.walls.some((w) => w.id === id);
+      case 'opening':
+        return doc.openings.some((o) => o.id === id);
+      case 'room':
+        return doc.rooms.some((r) => r.id === id);
+      case 'furniture':
+        return doc.furniture.some((f) => f.id === id && !f.deleted);
+    }
+  };
+  const ids = sel.ids.filter(exists);
   return ids.length ? { kind: sel.kind, ids } : null;
-}
-
-function initialDoc(): SceneDocument {
-  return createSampleDocument();
 }
 
 export const useEditor = create<EditorState>()((set, get) => {
   /** Apply a history transition and recompute derived state. */
   const apply = (history: History<SceneDocument>, extra: Partial<EditorState> = {}) => {
     const { savedDoc, selection } = get();
-    set({
-      history,
-      dirty: isDirty(history.present, savedDoc),
-      selection: validSelection(selection, history.present),
-      ...extra,
-    });
+    set({ history, dirty: isDirty(history.present, savedDoc), selection: validSelection(selection, history.present), ...extra });
   };
 
   const commitDoc = (next: SceneDocument, key?: string) => {
     const h = get().history;
     if (next === h.present) return;
-    apply(commit(h, next, key ? { key } : {}));
+    apply(commit(h, revokeApprovalIfEdited(h.present, next), key ? { key } : {}));
   };
+
+  const doc = () => get().history.present;
 
   return {
     loadState: 'loading',
     loadError: null,
     storage: null,
     project: null,
-    history: createHistory(initialDoc()),
+    history: createHistory(createSampleDocument()),
     savedDoc: null,
     dirty: false,
     save: { status: 'idle', error: null, lastSavedAt: null },
+    mode: 'design',
     selection: null,
     viewMode: '3d',
     quality: 'balanced',
@@ -178,6 +222,8 @@ export const useEditor = create<EditorState>()((set, get) => {
         url.searchParams.set('project', project.id);
         window.history.replaceState(null, '', url);
       }
+      const requested = url.searchParams.get('mode');
+      const mode: WorkMode = requested === 'build' || requested === 'design' || requested === 'experience' ? requested : project.document.walls.length === 0 ? 'build' : get().mode;
       set({
         loadState: 'ready',
         loadError: null,
@@ -187,30 +233,27 @@ export const useEditor = create<EditorState>()((set, get) => {
         savedDoc: project.document,
         dirty: false,
         selection: null,
+        mode,
         save: { status: 'idle', error: null, lastSavedAt: null },
       });
     },
 
     loadLocalSample(reason) {
-      const doc = createSampleDocument();
-      set({
-        loadState: 'ready',
-        loadError: reason,
-        storage: 'offline',
-        project: null,
-        history: createHistory(doc),
-        savedDoc: doc,
-        dirty: false,
-        selection: null,
-      });
+      const d = createSampleDocument();
+      set({ loadState: 'ready', loadError: reason, storage: 'offline', project: null, history: createHistory(d), savedDoc: d, dirty: false, selection: null });
     },
 
+    setMode(mode) {
+      set({ mode, cameraCommand: { type: 'reset', nonce: Date.now() + Math.random() } });
+    },
+
+    select(kind, ids) {
+      set({ selection: ids.length ? { kind, ids } : null });
+    },
     selectWall(id, additive = false) {
       const { selection } = get();
       if (additive && selection?.kind === 'wall') {
-        const ids = selection.ids.includes(id)
-          ? selection.ids.filter((x) => x !== id)
-          : [...selection.ids, id];
+        const ids = selection.ids.includes(id) ? selection.ids.filter((x) => x !== id) : [...selection.ids, id];
         set({ selection: ids.length ? { kind: 'wall', ids } : null });
       } else {
         set({ selection: { kind: 'wall', ids: [id] } });
@@ -224,51 +267,125 @@ export const useEditor = create<EditorState>()((set, get) => {
     },
 
     paint(surfaceIds, patch, coalesceKey) {
-      commitDoc(updateSurfaces(get().history.present, surfaceIds, patch), coalesceKey);
+      commitDoc(updateSurfaces(doc(), surfaceIds, patch), coalesceKey);
     },
 
     beginDrag() {
-      set({ dragging: true, dragBase: get().history.present });
+      set({ dragging: true, dragBase: doc() });
     },
-    dragFurnitureTo(id, position) {
+    dragEdit(edit) {
       const h = get().history;
-      const next = moveFurniture(h.present, id, position);
+      const next = edit(h.present);
       if (next === h.present) return;
       // Live updates are not recorded; the whole drag becomes one undo step in endDrag().
       set({ history: replacePresent(h, next), dirty: true });
     },
+    dragFurnitureTo(id, position) {
+      get().dragEdit((d) => moveFurniture(d, id, position));
+    },
     endDrag() {
       const { history, dragBase, savedDoc } = get();
       if (!dragBase) return set({ dragging: false });
-      const next = commitTransient(history, dragBase);
-      set({
-        history: next,
-        dragging: false,
-        dragBase: null,
-        dirty: isDirty(next.present, savedDoc),
-      });
+      const present = revokeApprovalIfEdited(dragBase, history.present);
+      const next = commitTransient({ ...history, present }, dragBase);
+      set({ history: next, dragging: false, dragBase: null, dirty: isDirty(next.present, savedDoc), selection: validSelection(get().selection, next.present) });
     },
 
     rotateFurnitureBy(id, deltaRad) {
-      const item = get().history.present.furniture.find((f) => f.id === id);
-      if (!item) return;
-      commitDoc(rotateFurniture(get().history.present, id, item.rotationY + deltaRad));
+      const item = doc().furniture.find((f) => f.id === id);
+      if (item) commitDoc(rotateFurniture(doc(), id, item.rotationY + deltaRad));
     },
     setFurnitureRotation(id, rotationY) {
-      commitDoc(rotateFurniture(get().history.present, id, normalizeAngle(rotationY)), `rotate:${id}`);
+      commitDoc(rotateFurniture(doc(), id, normalizeAngle(rotationY)), `rotate:${id}`);
     },
     resetFurnitureTransform(id) {
-      commitDoc(resetFurniture(get().history.present, id));
+      commitDoc(resetFurniture(doc(), id));
     },
     removeFurniture(id) {
-      commitDoc(deleteFurniture(get().history.present, id));
+      commitDoc(deleteFurniture(doc(), id));
     },
     restoreRemovedFurniture(id) {
-      commitDoc(restoreFurniture(get().history.present, id));
+      commitDoc(restoreFurniture(doc(), id));
     },
     updateLighting(patch) {
       const key = 'ambient' in patch ? 'light:ambient' : 'sun' in patch ? 'light:sun' : undefined;
-      commitDoc(setLighting(get().history.present, patch), key);
+      commitDoc(setLighting(doc(), patch), key);
+    },
+
+    addWallSegment(start, end) {
+      const r = addWall(doc(), start, end);
+      commitDoc(r.doc);
+      return r.id;
+    },
+    setWallLengthM(id, m) {
+      commitDoc(setWallLength(doc(), id, m));
+    },
+    setWallThicknessM(id, m) {
+      commitDoc(setWallThickness(doc(), id, m), `thickness:${id}`);
+    },
+    setWallHeightM(id, m) {
+      commitDoc(setWallHeight(doc(), id, m), `height:${id}`);
+    },
+    addOpeningAt(kind, at) {
+      const r = addOpening(doc(), kind, at);
+      commitDoc(r.doc);
+      return r.id;
+    },
+    moveOpeningTo(id, offsetM) {
+      commitDoc(moveOpening(doc(), id, offsetM));
+    },
+    patchOpening(id, patch) {
+      commitDoc(updateOpening(doc(), id, patch), `opening:${id}`);
+    },
+    addRoomPolygon(polygon) {
+      const r = addRoom(doc(), polygon);
+      commitDoc(r.doc);
+      return r.id;
+    },
+    detectRooms() {
+      commitDoc(detectMissingRooms(doc()));
+    },
+    deleteSelection() {
+      const sel = get().selection;
+      if (!sel) return;
+      let next = doc();
+      for (const id of sel.ids) {
+        if (sel.kind === 'wall') next = deleteWall(next, id);
+        else if (sel.kind === 'opening') next = deleteOpening(next, id);
+        else if (sel.kind === 'room') next = deleteRoom(next, id);
+        else next = deleteFurniture(next, id);
+      }
+      commitDoc(next);
+    },
+    markSelectionReviewed(ids) {
+      const target = ids ?? get().selection?.ids ?? [];
+      commitDoc(markReviewed(doc(), target));
+    },
+    acknowledge(key, on) {
+      commitDoc(acknowledgeIssue(doc(), key, on));
+    },
+    setRoofSettings(roof) {
+      commitDoc(setRoof(doc(), roof));
+    },
+    approve() {
+      const issues = validateDocument(doc());
+      if (hasBlockingIssues(issues)) return { ok: false, issues };
+      const approved = approveModel(doc(), new Date().toISOString());
+      if (approved) commitDoc(approved);
+      return { ok: !!approved, issues };
+    },
+    applyImport(parts, source) {
+      const cur = doc();
+      const next = ensureSurfaces({
+        ...cur,
+        ...parts,
+        // Existing material assignments are kept by element id; furniture stays and is re-checked by validation.
+        sources: [...cur.sources.filter((s) => s.sourceId !== source.sourceId), source],
+        approval: { status: 'draft', approvedAt: null },
+        acknowledgedIssues: [],
+      });
+      commitDoc(next);
+      set({ selection: null });
     },
 
     undo() {
@@ -281,7 +398,7 @@ export const useEditor = create<EditorState>()((set, get) => {
     },
 
     setViewMode(mode) {
-      set({ viewMode: mode, cameraCommand: { type: 'reset', nonce: Date.now() } });
+      set({ viewMode: mode, cameraCommand: { type: 'reset', nonce: Date.now() + Math.random() } });
     },
     setQuality(quality) {
       set({ quality });
@@ -294,29 +411,18 @@ export const useEditor = create<EditorState>()((set, get) => {
       const { project, storage, save, history, dragging } = get();
       if (save.status === 'saving' || dragging) return false;
       if (!project || storage === 'offline') {
-        set({
-          save: {
-            status: 'error',
-            error: 'Not connected to the BuildView API. Changes cannot be saved until it is running.',
-            lastSavedAt: save.lastSavedAt,
-          },
-        });
+        set({ save: { status: 'error', error: 'Not connected to the BuildView API. Changes cannot be saved until it is running.', lastSavedAt: save.lastSavedAt } });
         return false;
       }
       const snapshot = history.present;
       set({ save: { status: 'saving', error: null, lastSavedAt: save.lastSavedAt } });
       try {
         // Nothing is marked saved until the server has confirmed it.
-        const saved = await api.save(project.id, {
-          baseRevision: project.revision,
-          document: snapshot,
-          editorMeta: { viewMode: get().viewMode },
-        });
-        const current = get().history.present;
+        const saved = await api.save(project.id, { baseRevision: project.revision, document: snapshot, editorMeta: { viewMode: get().viewMode, mode: get().mode } });
         set({
           project: { id: saved.id, name: saved.name, revision: saved.revision },
           savedDoc: snapshot,
-          dirty: isDirty(current, snapshot),
+          dirty: isDirty(get().history.present, snapshot),
           save: { status: 'idle', error: null, lastSavedAt: Date.now() },
         });
         return true;
@@ -341,13 +447,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         const copy = await api.duplicate(project.id);
         get().loadProject(copy, storage ?? 'postgres');
       } catch (e) {
-        set({
-          save: {
-            status: 'error',
-            error: e instanceof Error ? `Duplicate failed: ${e.message}` : 'Duplicate failed',
-            lastSavedAt: get().save.lastSavedAt,
-          },
-        });
+        set({ save: { status: 'error', error: e instanceof Error ? `Duplicate failed: ${e.message}` : 'Duplicate failed', lastSavedAt: get().save.lastSavedAt } });
       }
     },
   };

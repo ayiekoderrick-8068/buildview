@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import {
+  BackSide,
   BoxGeometry,
   CanvasTexture,
+  FrontSide,
   MeshStandardMaterial,
   RepeatWrapping,
   type BufferGeometry,
@@ -23,7 +25,6 @@ function getPlasterBase(): CanvasTexture {
   const ctx = canvas.getContext('2d');
   if (ctx) {
     const img = ctx.createImageData(size, size);
-    // Cheap value noise from a few octaves of a deterministic hash; wraps at the edges.
     const hash = (x: number, y: number) => {
       const xx = ((x % size) + size) % size;
       const yy = ((y % size) + size) % size;
@@ -58,17 +59,11 @@ function getPlasterBase(): CanvasTexture {
  * every face regardless of the segment's size.
  */
 export function createWorldUvBox([sx, sy, sz]: [number, number, number]): BufferGeometry {
+  sceneRegistry.stats.geometryBuilds++;
   const geo = new BoxGeometry(sx, sy, sz);
   const uv = geo.getAttribute('uv');
   // BoxGeometry face order: +x, -x, +y, -y, +z, -z; 4 vertices each.
-  const faceScales: Array<[number, number]> = [
-    [sz, sy],
-    [sz, sy],
-    [sx, sz],
-    [sx, sz],
-    [sx, sy],
-    [sx, sy],
-  ];
+  const faceScales: Array<[number, number]> = [[sz, sy], [sz, sy], [sx, sz], [sx, sz], [sx, sy], [sx, sy]];
   faceScales.forEach(([su, sv], face) => {
     for (let i = 0; i < 4; i++) {
       const idx = face * 4 + i;
@@ -82,10 +77,11 @@ export function createWorldUvBox([sx, sy, sz]: [number, number, number]): Buffer
 /**
  * One independent MeshStandardMaterial per surface id, kept in sync with the document.
  * Because every surface owns its own instance, editing one wall can never affect another.
+ * `side="back"` is used for ceilings so they are invisible when viewed from above.
  */
-export function useSurfaceMaterial(surfaceId: string): MeshStandardMaterial {
+export function useSurfaceMaterial(surfaceId: string, side: 'front' | 'back' = 'front'): MeshStandardMaterial {
   const invalidate = useThree((s) => s.invalidate);
-  const material = useMemo(() => new MeshStandardMaterial({ color: '#ffffff' }), []);
+  const material = useMemo(() => new MeshStandardMaterial({ color: '#ffffff', side: side === 'back' ? BackSide : FrontSide }), [side]);
   const bump = useRef<Texture | null>(null);
   const spec = useEditor((s) => s.history.present.surfaces[surfaceId]);
 

@@ -64,6 +64,7 @@ export function validateDocument(doc: SceneDocument, opts: ValidationOptions = {
 
   // ---- topology: gaps, free ends, crossings
   const topo = analyzeTopology(doc.walls, tol);
+  const gapPairs = new Set<string>();
   for (const d of topo.danglingEnds) {
     const w = wallsById.get(d.wallId)!;
     let nearest: { id: string; d: number } | null = null;
@@ -73,6 +74,10 @@ export function validateDocument(doc: SceneDocument, opts: ValidationOptions = {
       if (!nearest || dd < nearest.d) nearest = { id: o.id, d: dd };
     }
     if (nearest && nearest.d > tol && nearest.d <= gapM) {
+      // Two loose ends facing each other describe ONE gap; report it once.
+      const pair = [w.id, nearest.id].sort().join('|');
+      if (gapPairs.has(pair)) continue;
+      gapPairs.add(pair);
       add('wall-gap', 'critical', [w.id, nearest.id], `${w.name} (${d.which}) stops ${(nearest.d * 1000).toFixed(0)} mm short of ${wallsById.get(nearest.id)!.name}; the room boundary is open.`, 'Drag the endpoint onto the other wall so they connect.', [...w.sourceHandles, ...handlesOf(nearest.id)]);
     } else {
       add('wall-free-end', 'warning', [w.id], `${w.name} (${d.which}) is not connected to any other wall.`, 'Connect it to another wall, or leave it if it is a free-standing partition.', w.sourceHandles);

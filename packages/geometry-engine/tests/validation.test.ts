@@ -72,6 +72,13 @@ describe('validateDocument', () => {
     expect(crit.status).toBe('open');
   });
 
+  it('reports two loose ends facing each other as a single gap', () => {
+    const d = base();
+    const n = d.walls[0]!;
+    const broken = { ...d, walls: d.walls.map((w) => (w.id === n.id ? { ...n, end: { x: n.end.x - 0.3, y: n.end.y } } : w)) };
+    expect(validateDocument(broken).filter((i) => i.code === 'wall-gap')).toHaveLength(1);
+  });
+
   it('is deterministic and sorted critical first', () => {
     const d = { ...base(), openings: [opening({ widthM: 6 })] };
     expect(validateDocument(d)).toEqual(validateDocument(d));

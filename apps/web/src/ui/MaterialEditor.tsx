@@ -33,12 +33,12 @@ export function MaterialPreview({ material }: { material: SurfaceMaterial }) {
  * Edits the material of the current paint targets. Every control writes through the design engine,
  * which ignores settings that do not apply to the finish (so disabled controls reflect reality).
  */
-export function MaterialEditor() {
+export function MaterialEditor({ surfaceIds }: { surfaceIds?: string[] } = {}) {
   const doc = useEditor((s) => s.history.present);
   const selection = useEditor((s) => s.selection);
   const paint = useEditor((s) => s.paint);
   const scope = useUi((s) => s.paintScope);
-  const targets = paintTargets(scope, selection, doc);
+  const targets = surfaceIds ?? paintTargets(scope, selection, doc);
   const primary = targets[0] ? doc.surfaces[targets[0]] : undefined;
 
   const hexId = useId();
